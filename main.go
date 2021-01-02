@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reorg/domain/fs"
+	"reorg/domain/work"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func run() error {
 		return errors.New("unable to proceed")
 	}
 
-	log.Println("do work...")
+	log.Println("doing work...")
 
-	return nil
+	return work.Do(dirs, outPath)
 }

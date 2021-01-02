@@ -26,5 +26,5 @@ A standard GNotes export directory looks like this:
 ## Running locally
 
 ```
-go run main.go -i <relative_input_path> -o <relative_output_path>
+go run main.go -i <relative_export_path> -o <relative_path_to_write_to>
 ```
