@@ -4,85 +4,109 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
+	"strings"
 	"sync"
 	"time"
 )
 
 // note represents a single note
 type note struct {
+	id      string
+	path    string
 	date    time.Time
 	content string
 }
 
 // Do does our grunt work
 func Do(inpPaths []string, outPath string) error {
-	// result channels
-	noteCh := make(chan *note, len(inpPaths))
-	errCh := make(chan error, len(inpPaths))
+	var notes []note
 
-	// concurrency objects
-	sem := make(chan struct{}, 50)
-	wg := &sync.WaitGroup{}
-
-	// parse notes
-	for i, path := range inpPaths {
-		fpath := fmt.Sprintf("%s/content.html", path)
-		wg.Add(1)
-		sem <- struct{}{} // block
-		go func(i int, fpath string) {
-			defer func() {
-				wg.Done()
-				<-sem // unblock
-			}()
-			info, err := os.Stat(fpath)
-			if err != nil {
-				// cannot get file info
-				errCh <- fmt.Errorf("inpPath #%d: %s", i, err.Error())
-				return
-			}
-			// parse note
-			n, err := parseNoteFromFile(fpath)
-			if err != nil {
-				errCh <- fmt.Errorf("error in %s: %s", info.Name(), err.Error())
-				return
-			}
-			// send note to channel
-			noteCh <- n
-		}(i, fpath)
+	// gather notes with id and path
+	for _, p := range inpPaths {
+		root := strings.Split(p, "/")
+		notes = append(notes, note{
+			id:   root[len(root)-1],
+			path: p,
+		})
 	}
 
-	wg.Wait()
-	close(noteCh)
-	close(errCh)
+	// enrich notes with content and date
+	notes, err := enrichNotes(notes)
+	if err != nil {
+		return err
+	}
 
-	// output channel contents
-	noteCount := 0
-	noteTotal := len(noteCh)
-	for n := range noteCh {
-		noteCount++
-		log.Printf("note #%d/%d: %+v\n", noteCount, noteTotal, n)
+	// output
+	total := len(notes)
+	for i, n := range notes {
+		log.Printf("note #%d/%d: %+v\n", i, total, n)
 	}
-	errCount := 0
-	errTotal := len(errCh)
-	for err := range errCh {
-		errCount++
-		log.Printf("error #%d/%d: %+v\n", errCount, errTotal, err)
-	}
-	log.Printf("finished summarising %d notes and %d errors\n", noteTotal, errTotal)
+
+	log.Printf("finished summarising %d notes\n", total)
 
 	return nil
 }
 
-// parseNoteFromFile parses a note from the given file path
-func parseNoteFromFile(path string) (*note, error) {
-	b, err := ioutil.ReadFile(path)
+// enrichNotes parses contents of each note's path and returns the note objects with this data attached
+func enrichNotes(notes []note) ([]note, error) {
+	var (
+		errCh    = make(chan error, 1)
+		resultCh = make(chan []note, 1)
+	)
+
+	go func() {
+		var enriched []note
+		noteCh := make(chan note, len(notes))
+
+		wg := &sync.WaitGroup{}
+		wg.Add(len(notes))
+
+		for _, n := range notes {
+			go func(n note) {
+				defer func() {
+					wg.Done()
+				}()
+				if err := enrichNote(&n); err != nil {
+					errCh <- fmt.Errorf("note %s: %w", n.id, err)
+					return
+				}
+				noteCh <- n
+			}(n)
+		}
+
+		wg.Wait()
+		close(noteCh)
+
+		for n := range noteCh {
+			enriched = append(enriched, n)
+		}
+		resultCh <- enriched
+	}()
+
+	for {
+		select {
+		case err := <-errCh:
+			return nil, err
+		case result := <-resultCh:
+			return result, nil
+		}
+	}
+}
+
+// enrichNote enriches the provided note
+func enrichNote(n *note) error {
+	b, err := ioutil.ReadFile(n.path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// TODO: parse properly, just add full content of file as a placeholder for now
-	return &note{
-		content: string(b),
-	}, nil
+	// TODO: sanitise content
+	n.content = string(b)
+
+	return nil
+}
+
+// getContentPath returns the name of the content file within the provided dir path
+func getContentPath(dir string) string {
+	return fmt.Sprintf("%s/content.html", dir)
 }
