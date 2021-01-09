@@ -21,10 +21,12 @@ A standard GNotes export directory looks like this:
             | content.html
 ```
 
-`content.html` comprises the note's creation timestamp as well as its content. This file is parsed to create the new organisation structure outlined above.
+`content.html` includes a HTML body that represents the note's creation and modified timestamps as well as its content. This file is parsed to create the new organisation structure outlined above.
 
 ## Running locally
 
+### Clean
+
 ```
-go run main.go -i <relative_export_path> -o <relative_path_to_write_to>
+go run cmd/clean/main.go -i <relative_export_path> -o <relative_path_to_write_to>
 ```

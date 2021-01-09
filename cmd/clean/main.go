@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reorg/domain/fs"
-	"reorg/domain/work"
+	"path/filepath"
+	"reorg/pkg/domain"
+	"reorg/pkg/fs"
 )
 
 func main() {
@@ -28,6 +29,12 @@ func run() error {
 		return err
 	}
 
+	outPath = fmt.Sprintf("%s/output", outPath)
+	outPath, err = filepath.Abs(outPath)
+	if err != nil {
+		return fmt.Errorf("absolute out path failed: %w", err)
+	}
+
 	log.Printf("scanning directory: %s", inpPath)
 	dirs, err := fs.GetSubDirsFromPath(inpPath)
 	if err != nil {
@@ -39,15 +46,37 @@ func run() error {
 	}
 
 	log.Printf("%d directories to search for note files", len(dirs))
+
+	if !cont() {
+		return errors.New("aborted")
+	}
+
+	log.Println("parsing notes...")
+
+	notes, err := domain.ParseNotes(dirs, outPath)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("parsed %d notes\n", len(notes))
 	log.Printf("writing to directory: %s", outPath)
+
+	if !cont() {
+		return errors.New("aborted")
+	}
+
+	log.Println("do writing...")
+
+	return nil
+}
+
+func cont() bool {
 	fmt.Print("continue? [Y/n] ")
 
 	s := bufio.NewScanner(os.Stdin)
 	if s.Scan(); s.Text() != "Y" {
-		return errors.New("unable to proceed")
+		return false
 	}
 
-	log.Println("doing work...")
-
-	return work.Do(dirs, outPath)
+	return true
 }

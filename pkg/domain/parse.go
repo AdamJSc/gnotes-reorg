@@ -1,4 +1,4 @@
-package work
+package domain
 
 import (
 	"errors"
@@ -22,32 +22,14 @@ const (
 	maxFnameTitleLen = 15
 )
 
-// note represents a single note
-type note struct {
-	id        string
-	path      string
-	title     string
-	timestamp time.Time
-	content   string
-}
-
-// filename returns a generated filename
-func (n note) filename() string {
-	title := strings.ReplaceAll(n.title, "/\\", "_")
-	if len(title) > maxFnameTitleLen {
-		title = fmt.Sprintf("%s___", title[:maxFnameTitleLen])
-	}
-	return fmt.Sprintf("%s %s.txt", n.timestamp.Format("2006-01-02"), title)
-}
-
-// Do does our grunt work
-func Do(inpPaths []string, outPath string) error {
-	var notes []note
+// ParseNotes handles the parsing of our input paths into Notes
+func ParseNotes(inpPaths []string, outPath string) ([]Note, error) {
+	var notes []Note
 
 	// gather notes with id and path
 	for _, p := range inpPaths {
 		root := strings.Split(p, "/")
-		notes = append(notes, note{
+		notes = append(notes, Note{
 			id:   root[len(root)-1],
 			path: getContentPath(p),
 		})
@@ -56,19 +38,10 @@ func Do(inpPaths []string, outPath string) error {
 	// enrich notes with content and date
 	notes, err := enrichNotes(notes)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// output
-	total := len(notes)
-	for i, n := range notes {
-		ts := n.timestamp.Format(time.RFC3339)
-		log.Printf("note #%d/%d: full = %+v: timestamp = %s\n", i+1, total, n, ts)
-	}
-
-	log.Printf("finished summarising %d notes\n", total)
-
-	return nil
+	return notes, nil
 }
 
 // getContentPath returns the name of the content file within the provided dir path
@@ -77,21 +50,21 @@ func getContentPath(dir string) string {
 }
 
 // enrichNotes parses contents of each note's path and returns the note objects with this data attached
-func enrichNotes(notes []note) ([]note, error) {
+func enrichNotes(notes []Note) ([]Note, error) {
 	var (
 		errCh    = make(chan error, 1)
-		resultCh = make(chan []note, 1)
+		resultCh = make(chan []Note, 1)
 	)
 
 	go func() {
-		var enriched []note
-		noteCh := make(chan note, len(notes))
+		var enriched []Note
+		noteCh := make(chan Note, len(notes))
 
 		wg := &sync.WaitGroup{}
 		wg.Add(len(notes))
 
 		for _, n := range notes {
-			go func(n note) {
+			go func(n Note) {
 				defer func() {
 					wg.Done()
 				}()
@@ -123,7 +96,7 @@ func enrichNotes(notes []note) ([]note, error) {
 }
 
 // enrichNote enriches the provided note
-func enrichNote(n *note) error {
+func enrichNote(n *Note) error {
 	b, err := ioutil.ReadFile(n.path)
 	if err != nil {
 		return err
