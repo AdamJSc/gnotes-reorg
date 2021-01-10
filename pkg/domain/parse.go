@@ -19,7 +19,6 @@ const (
 	modTimePrefix    = "Modify Time: "
 	tsFormat         = "02/01/2006 15:04"
 	headerLines      = 5
-	maxFnameTitleLen = 15
 )
 
 // ParseNotes handles the parsing of our input paths into Notes
@@ -176,6 +175,7 @@ func parseTitle(inp string, t *string) error {
 		title = parts[1]
 	}
 
+	title = strings.ToLower(title)
 	*t = strings.Trim(title, " \n")
 
 	return nil
@@ -226,7 +226,8 @@ func parseNoteContent(inp string, c *string) error {
 	}
 
 	contentLines := lines[headerLines-1:]
-	*c = strings.Join(contentLines, "\n")
+	content := strings.Join(contentLines, "\n")
+	*c = strings.TrimLeft(content, " \n")
 
 	return nil
 }

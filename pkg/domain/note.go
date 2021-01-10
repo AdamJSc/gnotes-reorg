@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/kennygrant/sanitize"
 )
+
+const maxFnameTitleLen = 30
 
 // Note represents a single Note
 type Note struct {
@@ -17,9 +21,11 @@ type Note struct {
 
 // filename returns a generated filename
 func (n Note) filename() string {
-	title := strings.ReplaceAll(n.title, "/\\", "_")
-	if len(title) > maxFnameTitleLen {
-		title = fmt.Sprintf("%s___", title[:maxFnameTitleLen])
+	title := strings.ToLower(n.title)
+	baseName := sanitize.BaseName(title)
+	fileName := fmt.Sprintf("%s_%s", n.timestamp.Format("2006-01-02"), baseName)
+	if len(fileName) > maxFnameTitleLen {
+		fileName = fmt.Sprintf("%s__", fileName[:maxFnameTitleLen])
 	}
-	return fmt.Sprintf("%s %s.txt", n.timestamp.Format("2006-01-02"), title)
+	return fmt.Sprintf("%s.txt", fileName)
 }

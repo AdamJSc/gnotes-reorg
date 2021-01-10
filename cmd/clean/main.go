@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -60,12 +61,18 @@ func run() error {
 
 	log.Printf("parsed %d notes\n", len(notes))
 	log.Printf("writing to directory: %s", outPath)
+	log.Println("this will reset its existing contents")
 
 	if !cont() {
 		return errors.New("aborted")
 	}
 
-	log.Println("do writing...")
+	if err := domain.WriteNotes(context.Background(), notes, outPath); err != nil {
+		return err
+	}
+
+	log.Printf("finished writing %d notes\n", len(notes))
+	log.Println("process complete!")
 
 	return nil
 }
