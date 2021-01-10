@@ -18,10 +18,13 @@ func main() {
 	if err := run(); err != nil {
 		log.Fatalf("failed: %s", err.Error())
 	}
+	log.Println("process complete!")
 }
 
 // run executes our business logic
 func run() error {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	flagI := flag.String("i", "", "relative path to gnotes export directory")
 	flagO := flag.String("o", "", "relative path to output directory for cleaned notes")
 	flag.Parse()
@@ -78,12 +81,12 @@ func run() error {
 		return errors.New("aborted")
 	}
 
-	if err := domain.WriteNotes(context.Background(), notes, outPath); err != nil {
+	n, err := domain.WriteNotes(context.Background(), notes, outPath)
+	if err != nil {
 		return err
 	}
 
-	log.Printf("finished writing %d notes\n", len(notes))
-	log.Println("process complete!")
+	log.Printf("finished writing %d notes\n", n)
 
 	return nil
 }

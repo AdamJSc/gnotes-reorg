@@ -30,3 +30,9 @@ A standard GNotes export directory looks like this:
 ```
 go run cmd/clean/main.go -i <relative_path_to_gnotes_export_dir> -o <relative_path_to_clean_output_dir>
 ```
+
+### Manifest
+
+```
+go run cmd/manifest/main.go -i <relative_path_to_dir_of_cleaned_files> -o <relative_path_dir_to_save_manifest_in>
+```

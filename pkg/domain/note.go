@@ -27,7 +27,7 @@ func (n *Note) MarshalJSON() ([]byte, error) {
 		Filename string `json:"filename"`
 		noteAlias
 	}{
-		Filename:  n.filename("json"),
+		Filename:  n.filename(),
 		noteAlias: noteAlias(*n),
 	}
 
@@ -35,12 +35,12 @@ func (n *Note) MarshalJSON() ([]byte, error) {
 }
 
 // filename returns a generated filename
-func (n Note) filename(ext string) string {
+func (n Note) filename() string {
 	title := strings.ToLower(n.Title)
 	baseName := sanitize.BaseName(title)
 	fileName := fmt.Sprintf("%s_%s", n.Timestamp.Format("2006-01-02"), baseName)
 	if len(fileName) > maxFnameTitleLen {
 		fileName = fmt.Sprintf("%s__", fileName[:maxFnameTitleLen])
 	}
-	return fmt.Sprintf("%s.%s", fileName, ext)
+	return fileName
 }
