@@ -29,8 +29,8 @@ func ParseNotes(inpPaths []string, outPath string) ([]Note, error) {
 	for _, p := range inpPaths {
 		root := strings.Split(p, "/")
 		notes = append(notes, Note{
-			id:   root[len(root)-1],
-			path: getContentPath(p),
+			ID:   root[len(root)-1],
+			Path: getContentPath(p),
 		})
 	}
 
@@ -68,7 +68,7 @@ func enrichNotes(notes []Note) ([]Note, error) {
 					wg.Done()
 				}()
 				if err := enrichNote(&n); err != nil {
-					errCh <- fmt.Errorf("note %s: %w", n.id, err)
+					errCh <- fmt.Errorf("note %s: %w", n.ID, err)
 					return
 				}
 				noteCh <- n
@@ -96,7 +96,7 @@ func enrichNotes(notes []Note) ([]Note, error) {
 
 // enrichNote enriches the provided note
 func enrichNote(n *Note) error {
-	b, err := ioutil.ReadFile(n.path)
+	b, err := ioutil.ReadFile(n.Path)
 	if err != nil {
 		return err
 	}
@@ -107,15 +107,15 @@ func enrichNote(n *Note) error {
 		return err
 	}
 
-	if err := parseTitle(sanitised, &n.title); err != nil {
+	if err := parseTitle(sanitised, &n.Title); err != nil {
 		return err
 	}
 
-	if err := parseTimestamp(sanitised, &n.timestamp); err != nil {
+	if err := parseTimestamp(sanitised, &n.Timestamp); err != nil {
 		return err
 	}
 
-	if err := parseNoteContent(sanitised, &n.content); err != nil {
+	if err := parseNoteContent(sanitised, &n.Content); err != nil {
 		return err
 	}
 

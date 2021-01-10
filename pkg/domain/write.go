@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -70,10 +72,14 @@ func WriteNotes(ctx context.Context, notes []Note, outPath string) (e error) {
 				}()
 
 				// save note
-				filePath := strings.Join([]string{outPath, n.filename()}, string(os.PathSeparator))
-
-				if err := ioutil.WriteFile(filePath, []byte(n.content), 0644); err != nil {
-					errCh <- fmt.Errorf("note %s: %w", n.id, err)
+				filePath := strings.Join([]string{outPath, n.filename(".json")}, string(os.PathSeparator))
+				buf := bytes.NewBuffer(nil)
+				if err := json.NewEncoder(buf).Encode(&n); err != nil {
+					errCh <- fmt.Errorf("cannot parse json: %w", err)
+					return
+				}
+				if err := ioutil.WriteFile(filePath, buf.Bytes(), 0644); err != nil {
+					errCh <- fmt.Errorf("note %s: %w", n.ID, err)
 					return
 				}
 			}(n)
