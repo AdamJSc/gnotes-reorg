@@ -28,5 +28,5 @@ A standard GNotes export directory looks like this:
 ### Clean
 
 ```
-go run cmd/clean/main.go -i <relative_export_path> -o <relative_path_to_write_to>
+go run cmd/clean/main.go -i <relative_path_to_gnotes_export_dir> -o <relative_path_to_clean_output_dir>
 ```
