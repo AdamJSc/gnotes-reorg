@@ -92,7 +92,7 @@ func run() error {
 }
 
 func cont() bool {
-	fmt.Print("continue? [Y/n] ")
+	fmt.Print("> continue? [Y/n] ")
 
 	s := bufio.NewScanner(os.Stdin)
 	if s.Scan(); s.Text() != "Y" {

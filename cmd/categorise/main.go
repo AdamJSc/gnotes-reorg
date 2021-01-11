@@ -80,7 +80,7 @@ func run() error {
 	notes = domain.SortNotesByFilenameDesc(notes)
 
 	log.Println("begin requesting categories...")
-	if err := domain.RequestCategories(notes); err != nil {
+	if err := domain.RequestCategories(notes, manifest, manifestPath); err != nil {
 		return fmt.Errorf("cannot request categories: %w", err)
 	}
 
@@ -88,7 +88,7 @@ func run() error {
 }
 
 func cont() bool {
-	fmt.Print("continue? [Y/n] ")
+	fmt.Print("> continue? [Y/n] ")
 
 	s := bufio.NewScanner(os.Stdin)
 	if s.Scan(); s.Text() != "Y" {

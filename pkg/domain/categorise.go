@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,12 +11,14 @@ import (
 	"strings"
 )
 
+const abridgedLen = 5
+
 // noteManifest maps a note filename to its category
 type noteManifest map[string]string
 
 // ParseManifestFromPath parse the manifest from the provided path
 func ParseManifestFromPath(manifestPath string) (noteManifest, error) {
-	var manifest noteManifest
+	manifest := make(noteManifest)
 
 	// read contents of manifest file
 	payload, err := ioutil.ReadFile(manifestPath)
@@ -93,7 +96,65 @@ func SortNotesByFilenameDesc(notes []Note) []Note {
 }
 
 // RequestCategories requests categories for each of the provided Notes in turn
-func RequestCategories(notes []Note) error {
-	// TODO: implement
+func RequestCategories(notes []Note, manifest noteManifest, manifestPath string) error {
+	var err error
+	for _, n := range notes {
+		key := n.filename()
+		cat := renderAndRequestCategory(n, true)
+
+		manifest, err = applyToManifest(key, cat, manifest)
+		if err != nil {
+			return fmt.Errorf("cannot apply manifest value to key %s: %w", key, err)
+		}
+
+		if err := saveManifest(manifest, manifestPath); err != nil {
+			return fmt.Errorf("cannot save manifest: %w", err)
+		}
+	}
+	return nil
+}
+
+// renderAndRequestCategory outputs the provided Note to console and returns the subsequent user input
+func renderAndRequestCategory(n Note, abridged bool) string {
+	content := n.Content
+	if abridged == true {
+		lines := strings.Split(content, "\n")
+		if len(lines) > abridgedLen {
+			content = strings.Join(lines[:5], "\n")
+		}
+	}
+
+	fmt.Printf("%s %s:\n%s\n", n.Timestamp.Format("2006-01-02"), n.Title, content)
+	fmt.Print("> category? [type `f` for full] ")
+
+	s := bufio.NewScanner(os.Stdin)
+	s.Scan()
+	inp := s.Text()
+	if inp == "f" {
+		return renderAndRequestCategory(n, false)
+	}
+	return inp
+}
+
+// applyToManifest applies the provided category to the provided manifest at the provided key
+func applyToManifest(key, cat string, manifest noteManifest) (noteManifest, error) {
+	if _, ok := manifest[key]; ok {
+		return nil, fmt.Errorf("key already exists: %s", key)
+	}
+	manifest[key] = cat
+	return manifest, nil
+}
+
+// saveManifest saves the provided manifest to the provided path
+func saveManifest(manifest noteManifest, manifestPath string) error {
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(&manifest); err != nil {
+		return fmt.Errorf("cannot json encode manifest: %w", err)
+	}
+
+	if err := ioutil.WriteFile(manifestPath, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("cannot write to file %s: %w", manifestPath, err)
+	}
+
 	return nil
 }
