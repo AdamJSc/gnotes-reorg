@@ -46,7 +46,7 @@ func run() error {
 
 	var jsonFiles []string
 	for _, f := range files {
-		if strings.HasSuffix(f, ".json") {
+		if strings.HasSuffix(f, ".json") && filepath.Base(f) != "manifest.json" {
 			jsonFiles = append(jsonFiles, f)
 		}
 	}
@@ -61,9 +61,27 @@ func run() error {
 		return errors.New("aborted")
 	}
 
-	log.Println("categorising notes...")
-	if err := domain.CategoriseNotes(jsonFiles, manifestPath); err != nil {
-		return fmt.Errorf("cannot categorise notes: %w", err)
+	log.Println("parsing notes from files...")
+	notes, err := domain.ParseNotesFromPaths(jsonFiles)
+	if err != nil {
+		return fmt.Errorf("cannot parse notes: %w", err)
+	}
+
+	log.Println("parsing manifest from file...")
+	manifest, err := domain.ParseManifestFromPath(manifestPath)
+	if err != nil {
+		return fmt.Errorf("cannot parse manifest: %w", err)
+	}
+
+	log.Println("removing notes already processed...")
+	notes = domain.FilterNotesNotInManifest(notes, manifest)
+
+	log.Println("sorting notes...")
+	notes = domain.SortNotesByFilenameDesc(notes)
+
+	log.Println("begin requesting categories...")
+	if err := domain.RequestCategories(notes); err != nil {
+		return fmt.Errorf("cannot request categories: %w", err)
 	}
 
 	return nil
