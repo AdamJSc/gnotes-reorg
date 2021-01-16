@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"reorg/pkg/app"
 	"reorg/pkg/domain"
 	"reorg/pkg/fs"
 	"strings"
@@ -57,7 +57,7 @@ func run() error {
 
 	log.Printf("%d note files to categorise", len(jsonFiles))
 
-	if !cont() {
+	if !app.Cont() {
 		return errors.New("aborted")
 	}
 
@@ -85,15 +85,4 @@ func run() error {
 	}
 
 	return nil
-}
-
-func cont() bool {
-	fmt.Print("> continue? [Y/n] ")
-
-	s := bufio.NewScanner(os.Stdin)
-	if s.Scan(); s.Text() != "Y" {
-		return false
-	}
-
-	return true
 }

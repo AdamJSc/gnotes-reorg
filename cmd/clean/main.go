@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -9,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reorg/pkg/app"
 	"reorg/pkg/domain"
 	"reorg/pkg/fs"
 	"strings"
@@ -62,7 +62,7 @@ func run() error {
 
 	log.Printf("%d directories to search for note files", len(dirs))
 
-	if !cont() {
+	if !app.Cont() {
 		return errors.New("aborted")
 	}
 
@@ -77,7 +77,7 @@ func run() error {
 	log.Printf("writing to directory: %s", outPath)
 	log.Println("this will reset its existing contents")
 
-	if !cont() {
+	if !app.Cont() {
 		return errors.New("aborted")
 	}
 
@@ -89,15 +89,4 @@ func run() error {
 	log.Printf("finished writing %d notes\n", n)
 
 	return nil
-}
-
-func cont() bool {
-	fmt.Print("> continue? [Y/n] ")
-
-	s := bufio.NewScanner(os.Stdin)
-	if s.Scan(); s.Text() != "Y" {
-		return false
-	}
-
-	return true
 }
