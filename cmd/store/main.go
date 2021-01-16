@@ -87,8 +87,10 @@ func run() error {
 		return errors.New("aborted")
 	}
 
+	store := &domain.StubStorage{}
+
 	log.Println("begin move to storage...")
-	if err := domain.MoveNotesToStorage(notes, manifest); err != nil {
+	if err := domain.MoveNotesToStorage(notes, manifest, store); err != nil {
 		return fmt.Errorf("moving notes failed: %w", err)
 	}
 
