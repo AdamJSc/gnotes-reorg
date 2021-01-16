@@ -13,13 +13,14 @@ import (
 
 const abridgedLen = 5
 
-// FilterNotesNotInManifest returns the provided Note objects that do not appear in the provided manifest
-func FilterNotesNotInManifest(notes []Note, manifest noteManifest) []Note {
+// FilterNotesByManifest returns the provided Note objects that do not appear in the provided manifest
+func FilterNotesByManifest(notes []Note, manifest noteManifest, keepIfPresent bool) []Note {
 	var retained []Note
 
 	for _, n := range notes {
-		// keep note to process if it doesn't already appear in the manifest
-		if _, ok := manifest[n.filename()]; !ok {
+		_, ok := manifest[n.filename()]
+		if keepIfPresent == ok {
+			// retain if note appears in manifest
 			retained = append(retained, n)
 		}
 	}

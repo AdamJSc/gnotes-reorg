@@ -55,12 +55,6 @@ func run() error {
 		return fmt.Errorf("no json files found in parent: %s", inPath)
 	}
 
-	log.Printf("%d note files to categorise", len(jsonFiles))
-
-	if !app.Cont() {
-		return errors.New("aborted")
-	}
-
 	log.Println("parsing notes from files...")
 	notes, err := domain.ParseNotesFromPaths(jsonFiles)
 	if err != nil {
@@ -74,10 +68,16 @@ func run() error {
 	}
 
 	log.Println("removing notes already processed...")
-	notes = domain.FilterNotesNotInManifest(notes, manifest)
+	notes = domain.FilterNotesByManifest(notes, manifest, false)
 
 	log.Println("sorting notes...")
 	notes = domain.SortNotesByFilenameDesc(notes)
+
+	log.Printf("%d note files to categorise", len(notes))
+
+	if !app.Cont() {
+		return errors.New("aborted")
+	}
 
 	log.Println("begin requesting categories...")
 	if err := domain.RequestCategories(notes, manifest, manifestPath); err != nil {

@@ -69,9 +69,18 @@ func run() error {
 		return fmt.Errorf("cannot parse manifest: %w", err)
 	}
 
-	if len(notes) != len(manifest) {
-		return fmt.Errorf("mismatch source length: %d notes: %d manifest entries", len(notes), len(manifest))
+	if len(manifest) == 0 {
+		return errors.New("manifest is empty :'(")
 	}
+
+	if len(notes) != len(manifest) {
+		log.Printf("WARNING: mismatched source length: %d notes: %d manifest entries", len(notes), len(manifest))
+		if !app.Cont() {
+			return errors.New("aborted")
+		}
+	}
+
+	notes = domain.FilterNotesByManifest(notes, manifest, true)
 
 	log.Printf("%d notes moving to storage", len(notes))
 	if !app.Cont() {
