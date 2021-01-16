@@ -1,10 +1,13 @@
 package domain
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -21,16 +24,75 @@ const (
 	headerLines      = 5
 )
 
-// ParseNotes handles the parsing of our input paths into Notes
-func ParseNotes(inpPaths []string, outPath string) ([]Note, error) {
+// noteManifest maps a note filename to its category
+type noteManifest map[string]string
+
+// ParseManifestFromPath parse the manifest from the provided path
+func ParseManifestFromPath(manifestPath string) (noteManifest, error) {
+	manifest := make(noteManifest)
+
+	// read contents of manifest file
+	payload, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("cannot parse existing manifest file %s: %w", manifestPath, err)
+		}
+		if _, err := os.Create(manifestPath); err != nil {
+			return nil, fmt.Errorf("cannot create manifest file %s: %w", manifestPath, err)
+		}
+		return manifest, nil
+	}
+
+	// check if file contents are empty
+	if len(payload) == 0 {
+		return manifest, nil
+	}
+
+	// parse manifest
+	r := bytes.NewReader(payload)
+	if err := json.NewDecoder(r).Decode(&manifest); err != nil {
+		return nil, fmt.Errorf("cannot json decode manifest %s: %w", manifestPath, err)
+	}
+
+	return manifest, nil
+}
+
+// ParseNotesFromPaths returns the notes whose payloads are stored in files at the provided paths
+func ParseNotesFromPaths(paths []string) ([]Note, error) {
+	var notes []Note
+
+	for _, p := range paths {
+		// read contents of file at path
+		payload, err := ioutil.ReadFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse file as note %s: %w", p, err)
+		}
+
+		// parse json
+		r := bytes.NewReader(payload)
+		var n Note
+		if err := json.NewDecoder(r).Decode(&n); err != nil {
+			return nil, fmt.Errorf("cannot json decode file payload as note %s: %w", p, err)
+		}
+
+		n.Path = p
+
+		notes = append(notes, n)
+	}
+
+	return notes, nil
+}
+
+// ParseRawNotes handles the parsing of our input paths into Notes
+func ParseRawNotes(inpPaths []string, outPath string) ([]Note, error) {
 	var notes []Note
 
 	// gather notes with id and path
 	for _, p := range inpPaths {
 		root := strings.Split(p, "/")
 		notes = append(notes, Note{
-			ID:   root[len(root)-1],
-			Path: getContentPath(p),
+			ID:           root[len(root)-1],
+			OriginalPath: getContentPath(p),
 		})
 	}
 
@@ -96,7 +158,7 @@ func enrichNotes(notes []Note) ([]Note, error) {
 
 // enrichNote enriches the provided note
 func enrichNote(n *Note) error {
-	b, err := ioutil.ReadFile(n.Path)
+	b, err := ioutil.ReadFile(n.OriginalPath)
 	if err != nil {
 		return err
 	}

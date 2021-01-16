@@ -13,11 +13,12 @@ const maxFnameTitleLen = 30
 
 // Note represents a single Note
 type Note struct {
-	ID        string    `json:"id"`
-	Path      string    `json:"originalPath"`
-	Title     string    `json:"title"`
-	Timestamp time.Time `json:"timestamp"`
-	Content   string    `json:"content"`
+	ID           string    `json:"id"`           // numeric gnotes id
+	Path         string    `json:"-"`            // parent directory of note once cleaned
+	OriginalPath string    `json:"originalPath"` // original full-qualified path to note html source file
+	Title        string    `json:"title"`        // title of the note
+	Timestamp    time.Time `json:"timestamp"`    // timestamp of the note
+	Content      string    `json:"content"`      // content of the note
 }
 
 // MarshalJSON implements custom marshaler on Note struct

@@ -68,7 +68,7 @@ func run() error {
 
 	log.Println("parsing notes...")
 
-	notes, err := domain.ParseNotes(dirs, outPath)
+	notes, err := domain.ParseRawNotes(dirs, outPath)
 	if err != nil {
 		return err
 	}
