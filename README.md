@@ -36,3 +36,9 @@ go run cmd/clean/main.go -i <relative_path_to_gnotes_export_dir> -o <relative_pa
 ```
 go run cmd/categorise/main.go -i <relative_path_to_dir_of_cleaned_files>
 ```
+
+### Store
+
+```
+go run cmd/store/main.go -i <relative_path_to_dir_of_cleaned_files_with_manifest>
+```
