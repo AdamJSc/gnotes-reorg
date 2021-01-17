@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
 )
 
 // WriteNotes handles the output of our notes to individual files within the output path
@@ -49,14 +48,10 @@ func WriteNotes(ctx context.Context, notes []Note, outPath string) (n int, e err
 	}
 
 	errCh := make(chan error, 1)
-	doneCh := make(chan struct{}, 1)
+	noteCh := make(chan Note, len(notes))
 
-	count := 0
 	go func() {
 		sem := make(chan struct{}, 50) // ensure no more than 50 concurrent operations
-		wg := &sync.WaitGroup{}
-		wg.Add(len(notes))
-
 		for _, n := range notes {
 			// check whether operation has ended
 			select {
@@ -68,7 +63,6 @@ func WriteNotes(ctx context.Context, notes []Note, outPath string) (n int, e err
 			sem <- struct{}{}
 			go func(n Note) {
 				defer func() {
-					wg.Done()
 					<-sem
 				}()
 				// save note
@@ -87,20 +81,25 @@ func WriteNotes(ctx context.Context, notes []Note, outPath string) (n int, e err
 					return
 				}
 
-				count++
+				noteCh <- n
 			}(n)
 		}
-
-		wg.Wait()
-		doneCh <- struct{}{}
 	}()
 
-	select {
-	case err := <-errCh:
-		cancel()
-		return 0, fmt.Errorf("failed to create note: %w", err)
-	case <-doneCh:
-		return count, nil
+	total := len(notes)
+	count := 0
+
+	for {
+		select {
+		case err := <-errCh:
+			cancel()
+			return 0, fmt.Errorf("failed to create note: %w", err)
+		case <-noteCh:
+			count++
+			if count == total {
+				return count, nil
+			}
+		}
 	}
 }
 
