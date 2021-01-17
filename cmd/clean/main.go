@@ -36,16 +36,18 @@ func run(fs *domain.FileSystemService, ns *domain.NoteService) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
 	defer cancel()
 
-	if err := fs.DirExists(ctx, inPath); err != nil {
-		return fmt.Errorf("cannot find %s: %w", inPath, err)
-	}
-
 	if err := fs.ParseAbsPath(ctx, &inPath, inPath, "Other"); err != nil {
 		return fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
-	if err := fs.ParseAbsPath(ctx, &outPath, outPath, "output"); err != nil {
-		return fmt.Errorf("cannot parse absolute path: %w", err)
+	if err := fs.DirExists(ctx, inPath); err != nil {
+		return fmt.Errorf("cannot find %s: %w", inPath, err)
+	}
+
+	if err := fs.DirExists(ctx, outPath); err != nil {
+		if err := fs.MakeDir(ctx, outPath); err != nil {
+			return fmt.Errorf("cannot create directory %s: %w", outPath, err)
+		}
 	}
 
 	log.Printf("scanning directory: %s", inPath)

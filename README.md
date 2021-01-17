@@ -28,17 +28,20 @@ A standard GNotes export directory looks like this:
 ### Clean
 
 ```
-go run cmd/clean/main.go -i <relative_path_to_gnotes_export_dir> -o <relative_path_to_clean_output_dir>
+# output relative to current working directory
+go run cmd/clean/main.go -i <relative_path_to_gnotes_export_dir> -o ./cleaned
 ```
 
 ### Categorise
 
 ```
-go run cmd/categorise/main.go -i <relative_path_to_dir_of_cleaned_files>
+# saves manifest is same directory
+go run cmd/categorise/main.go -i ./cleaned
 ```
 
 ### Store
 
 ```
-go run cmd/store/main.go -i <relative_path_to_dir_of_cleaned_files_with_manifest>
+# source files and manifest must be in same directory
+go run cmd/store/main.go -i ./cleaned
 ```

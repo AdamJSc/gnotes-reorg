@@ -35,6 +35,11 @@ func (f *FileSystemService) DirExists(ctx context.Context, path string) error {
 	return f.fs.DirExists(path)
 }
 
+// MakeDir attempts to make the directory at the given path
+func (f *FileSystemService) MakeDir(ctx context.Context, path string) error {
+	return f.fs.Mkdir(path, 0755)
+}
+
 // ParseAbsPath parses the absolute path of the provided components and assigns top val
 func (f *FileSystemService) ParseAbsPath(ctx context.Context, val *string, parts ...string) error {
 	abs, err := f.fs.Abs(parts...)
