@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,7 +17,7 @@ type FileSystemService struct {
 // GetChildPaths returns fully-qualified paths to all child paths within the provided parent directory.
 //
 // Will return only paths to directories if onlyDirs is true, otherwise only paths to files
-func (f *FileSystemService) GetChildPaths(parent string, validators ...FileValidator) ([]string, error) {
+func (f *FileSystemService) GetChildPaths(ctx context.Context, parent string, validators ...FileValidator) ([]string, error) {
 	paths := []string{}
 
 	infos, err := f.fs.ReadDir(parent)
@@ -34,12 +35,12 @@ func (f *FileSystemService) GetChildPaths(parent string, validators ...FileValid
 }
 
 // DirExists returns an error if the provided path does not exist as a directory
-func (f *FileSystemService) DirExists(path string) error {
+func (f *FileSystemService) DirExists(ctx context.Context, path string) error {
 	return f.fs.DirExists(path)
 }
 
 // ParseAbsPath parses the absolute path of the provided components and assigns top val
-func (f *FileSystemService) ParseAbsPath(val *string, parts ...string) error {
+func (f *FileSystemService) ParseAbsPath(ctx context.Context, val *string, parts ...string) error {
 	abs, err := f.fs.Abs(parts...)
 	if err != nil {
 		return fmt.Errorf("absolute path failed: %w", err)

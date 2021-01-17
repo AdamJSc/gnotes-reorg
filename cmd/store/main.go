@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"reorg/pkg/app"
 	"reorg/pkg/domain"
+	"time"
 )
 
 func main() {
@@ -28,17 +30,21 @@ func run(fs *domain.FileSystemService) error {
 		return fmt.Errorf("cannot parse flag: %w", err)
 	}
 
-	if err := fs.DirExists(inPath); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(15)*time.Second)
+	defer cancel()
+
+	if err := fs.DirExists(ctx, inPath); err != nil {
 		return fmt.Errorf("cannot find %s: %w", inPath, err)
 	}
 
 	var manifestPath string
-	if err := fs.ParseAbsPath(&manifestPath, inPath, "manifest.json"); err != nil {
+	if err := fs.ParseAbsPath(ctx, &manifestPath, inPath, "manifest.json"); err != nil {
 		return fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
 	log.Printf("scanning directory: %s", inPath)
 	files, err := fs.GetChildPaths(
+		ctx,
 		inPath,
 		&domain.IsNotDir{},
 		&domain.IsJSON{},

@@ -8,6 +8,7 @@ import (
 	"log"
 	"reorg/pkg/app"
 	"reorg/pkg/domain"
+	"time"
 )
 
 func main() {
@@ -32,20 +33,23 @@ func run(fs *domain.FileSystemService, ns *domain.NoteService) error {
 		return fmt.Errorf("cannot parse flags: %w", err)
 	}
 
-	if err := fs.DirExists(inPath); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
+
+	if err := fs.DirExists(ctx, inPath); err != nil {
 		return fmt.Errorf("cannot find %s: %w", inPath, err)
 	}
 
-	if err := fs.ParseAbsPath(&inPath, inPath, "Other"); err != nil {
+	if err := fs.ParseAbsPath(ctx, &inPath, inPath, "Other"); err != nil {
 		return fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
-	if err := fs.ParseAbsPath(&outPath, outPath, "output"); err != nil {
+	if err := fs.ParseAbsPath(ctx, &outPath, outPath, "output"); err != nil {
 		return fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
 	log.Printf("scanning directory: %s", inPath)
-	dirs, err := fs.GetChildPaths(inPath, &domain.IsDir{})
+	dirs, err := fs.GetChildPaths(ctx, inPath, &domain.IsDir{})
 	if err != nil {
 		return err
 	}
@@ -62,7 +66,7 @@ func run(fs *domain.FileSystemService, ns *domain.NoteService) error {
 
 	log.Println("parsing notes...")
 
-	notes, err := ns.ParseFromDirs(dirs)
+	notes, err := ns.ParseFromDirs(ctx, dirs)
 	if err != nil {
 		return err
 	}

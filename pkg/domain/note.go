@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -57,7 +58,7 @@ type NoteService struct {
 }
 
 // ParseFromDirs parses Notes from the provided directory paths
-func (ns *NoteService) ParseFromDirs(paths []string) ([]Note, error) {
+func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]Note, error) {
 	var notes []Note
 
 	for _, p := range paths {
@@ -68,7 +69,7 @@ func (ns *NoteService) ParseFromDirs(paths []string) ([]Note, error) {
 
 		id := ns.fs.Base(p)
 
-		n, err := ns.parseFromFile(contentPath, id)
+		n, err := ns.parseFromFile(ctx, contentPath, id)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse note from file %s: %w", p, err)
 		}
@@ -80,7 +81,7 @@ func (ns *NoteService) ParseFromDirs(paths []string) ([]Note, error) {
 }
 
 // parseFromFile parses a Note from the provided file path
-func (ns *NoteService) parseFromFile(path, id string) (Note, error) {
+func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (Note, error) {
 	b, err := ns.fs.ReadFile(path)
 	if err != nil {
 		return Note{}, err
