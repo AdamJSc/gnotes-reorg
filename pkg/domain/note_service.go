@@ -21,8 +21,8 @@ type NoteService struct {
 }
 
 // ParseFromDirs parses Notes from the provided directory paths
-func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]Note, error) {
-	var notes []Note
+func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]*Note, error) {
+	var notes []*Note
 
 	for _, p := range paths {
 		contentPath, err := ns.fs.Abs(p, "content.html")
@@ -44,7 +44,7 @@ func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]Not
 }
 
 // WriteToDir outputs the provided notes to individual files within the provided output path
-func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string) (n int, e error) {
+func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path string) (n int, e error) {
 	defer func() {
 		if e != nil {
 			if err := ns.cleanupPath(path); err != nil {
@@ -81,7 +81,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string
 	}
 
 	errCh := make(chan error, 1)
-	noteCh := make(chan Note, len(notes))
+	noteCh := make(chan *Note, len(notes))
 
 	go func() {
 		sem := make(chan struct{}, 50) // ensure no more than 50 concurrent operations
@@ -94,7 +94,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string
 			}
 			// otherwise continue for current note
 			sem <- struct{}{}
-			go func(n Note) {
+			go func(n *Note) {
 				defer func() {
 					<-sem
 				}()
@@ -137,31 +137,31 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string
 }
 
 // parseFromFile parses a Note from the provided file path
-func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (Note, error) {
+func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (*Note, error) {
 	b, err := ns.fs.ReadFile(path)
 	if err != nil {
-		return Note{}, err
+		return nil, err
 	}
 
 	content := string(b)
 	sanitised, err := sanitiseInput(content)
 	if err != nil {
-		return Note{}, err
+		return nil, err
 	}
 
-	n := Note{
+	n := &Note{
 		ID:           id,
 		OriginalPath: path,
 	}
 
 	if err := parseTitle(sanitised, &n.Title); err != nil {
-		return Note{}, err
+		return nil, err
 	}
 	if err := parseTimestamp(sanitised, &n.Timestamp); err != nil {
-		return Note{}, err
+		return nil, err
 	}
 	if err := parseNoteContent(sanitised, &n.Content); err != nil {
-		return Note{}, err
+		return nil, err
 	}
 
 	return n, nil

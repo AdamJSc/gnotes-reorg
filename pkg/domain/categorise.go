@@ -14,8 +14,8 @@ import (
 const abridgedLen = 5
 
 // FilterNotesByManifest returns the provided Note objects that do not appear in the provided manifest
-func FilterNotesByManifest(notes []Note, manifest noteManifest, keepIfPresent bool) []Note {
-	var retained []Note
+func FilterNotesByManifest(notes []*Note, manifest noteManifest, keepIfPresent bool) []*Note {
+	var retained []*Note
 
 	for _, n := range notes {
 		_, ok := manifest[n.filename()]
@@ -29,7 +29,7 @@ func FilterNotesByManifest(notes []Note, manifest noteManifest, keepIfPresent bo
 }
 
 // SortNotesByFilenameDesc orders the provided notes ordered descending by filename
-func SortNotesByFilenameDesc(notes []Note) []Note {
+func SortNotesByFilenameDesc(notes []*Note) []*Note {
 	sort.SliceStable(notes, func(i, j int) bool {
 		n1 := notes[i]
 		n2 := notes[j]
@@ -40,7 +40,7 @@ func SortNotesByFilenameDesc(notes []Note) []Note {
 }
 
 // RequestCategories requests categories for each of the provided Notes in turn
-func RequestCategories(notes []Note, manifest noteManifest, manifestPath string) error {
+func RequestCategories(notes []*Note, manifest noteManifest, manifestPath string) error {
 	var err error
 	for _, n := range notes {
 		key := n.filename()
@@ -59,7 +59,7 @@ func RequestCategories(notes []Note, manifest noteManifest, manifestPath string)
 }
 
 // renderAndRequestCategory outputs the provided Note to console and returns the subsequent user input
-func renderAndRequestCategory(n Note, abridged bool) string {
+func renderAndRequestCategory(n *Note, abridged bool) string {
 	content := n.Content
 	if abridged == true {
 		lines := strings.Split(content, "\n")

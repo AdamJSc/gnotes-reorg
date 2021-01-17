@@ -50,8 +50,8 @@ func ParseManifestFromPath(manifestPath string) (noteManifest, error) {
 }
 
 // ParseNotesFromPaths returns the notes whose payloads are stored in files at the provided paths
-func ParseNotesFromPaths(paths []string) ([]Note, error) {
-	var notes []Note
+func ParseNotesFromPaths(paths []string) ([]*Note, error) {
+	var notes []*Note
 
 	for _, p := range paths {
 		// read contents of file at path
@@ -62,8 +62,8 @@ func ParseNotesFromPaths(paths []string) ([]Note, error) {
 
 		// parse json
 		r := bytes.NewReader(payload)
-		var n Note
-		if err := json.NewDecoder(r).Decode(&n); err != nil {
+		n := &Note{}
+		if err := json.NewDecoder(r).Decode(n); err != nil {
 			return nil, fmt.Errorf("cannot json decode file payload as note %s: %w", p, err)
 		}
 

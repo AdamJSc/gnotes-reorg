@@ -37,7 +37,7 @@ func (n *Note) MarshalJSON() ([]byte, error) {
 }
 
 // filename returns a generated filename
-func (n Note) filename() string {
+func (n *Note) filename() string {
 	title := strings.ToLower(n.Title)
 	baseName := sanitize.BaseName(title)
 	fileName := fmt.Sprintf("%s_%s", n.Timestamp.Format("2006-01-02"), baseName)

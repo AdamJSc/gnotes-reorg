@@ -9,24 +9,24 @@ import (
 
 // Storage defines our Store method
 type Storage interface {
-	Store(ctx context.Context, n Note) error
+	Store(ctx context.Context, n *Note) error
 }
 
 // StubStorage implements Storage as a stub
 type StubStorage struct{ Storage }
 
 // Store implements Store method on Storage interface
-func (s *StubStorage) Store(ctx context.Context, n Note) error {
+func (s *StubStorage) Store(ctx context.Context, n *Note) error {
 	log.Printf("processing %s...", n.filename())
 	// TODO: implement me
 	return nil
 }
 
-func MoveNotesToStorage(notes []Note, manifest noteManifest, store Storage) error {
+func MoveNotesToStorage(notes []*Note, manifest noteManifest, store Storage) error {
 	log.Println("moving files to storage...")
 
 	errCh := make(chan error, 1)
-	noteCh := make(chan Note, len(notes))
+	noteCh := make(chan *Note, len(notes))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -37,7 +37,7 @@ func MoveNotesToStorage(notes []Note, manifest noteManifest, store Storage) erro
 		for _, n := range notes {
 			sem <- struct{}{} // block
 
-			go func(n Note) {
+			go func(n *Note) {
 				defer func() {
 					<-sem // unblock
 				}()
@@ -51,7 +51,7 @@ func MoveNotesToStorage(notes []Note, manifest noteManifest, store Storage) erro
 
 				// ok to process note...
 
-				if err := populateNoteCategory(&n, manifest); err != nil {
+				if err := populateNoteCategory(n, manifest); err != nil {
 					errCh <- fmt.Errorf("error populating category for note %s: %w", n.filename(), err)
 					return
 				}
