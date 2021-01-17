@@ -61,6 +61,10 @@ type FileSystem interface {
 	ReadFile(path string) ([]byte, error)
 	ReadDir(path string) ([]FileInfo, error)
 	DirExists(path string) error
+	IsNotExist(err error) bool
+	Stat(path string) (FileInfo, error)
+	Mkdir(path string, perm uint32) error
+	RemoveAll(path string) error
 	Abs(pathParts ...string) (string, error)
 	Dir(path string) string
 	Base(path string) string
@@ -92,9 +96,9 @@ func (o *OsFileSystem) ReadDir(path string) ([]FileInfo, error) {
 
 // DirExists implements FileSystem.DirExists()
 func (o *OsFileSystem) DirExists(path string) error {
-	info, err := os.Stat(path)
+	info, err := o.Stat(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if o.IsNotExist(err) {
 			return fmt.Errorf("path does not exist: %s", path)
 		}
 		return fmt.Errorf("os.Stat() failed: %w", err)
@@ -106,6 +110,38 @@ func (o *OsFileSystem) DirExists(path string) error {
 	}
 
 	return nil
+}
+
+// IsNotExist implements FileSystem.IsNotExist()
+func (o *OsFileSystem) IsNotExist(err error) bool {
+	// os.IsNotExist() will not work, only checks most recent type
+	// oserror package is internal so not importable
+	// do it the old-school way...
+	if err == nil {
+		return false
+	}
+
+	return strings.HasSuffix(err.Error(), "no such file or directory")
+}
+
+// Stat implements FileSystem.Stat()
+func (o *OsFileSystem) Stat(path string) (FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("os.Stat() failed: %w", err)
+	}
+
+	return &OsFileInfo{info}, nil
+}
+
+// Mkdir implements FileSystem.Mkdir()
+func (o *OsFileSystem) Mkdir(path string, perm uint32) error {
+	return os.Mkdir(path, os.FileMode(perm))
+}
+
+// RemoveAll implements FileSystem.RemoveAll()
+func (o *OsFileSystem) RemoveAll(path string) error {
+	return os.RemoveAll(path)
 }
 
 // Abs implements FileSystem.Abs()

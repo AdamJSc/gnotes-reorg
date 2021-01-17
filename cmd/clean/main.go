@@ -79,7 +79,7 @@ func run(fs *domain.FileSystemService, ns *domain.NoteService) error {
 		return errors.New("aborted")
 	}
 
-	n, err := domain.WriteNotes(context.Background(), notes, outPath)
+	n, err := ns.WriteToDir(ctx, notes, outPath)
 	if err != nil {
 		return err
 	}

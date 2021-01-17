@@ -1,10 +1,12 @@
 package domain
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"regexp"
 	"strings"
@@ -80,6 +82,99 @@ func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]Not
 	return notes, nil
 }
 
+// WriteToDir outputs the provided notes to individual files within the provided output path
+func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string) (n int, e error) {
+	defer func() {
+		if e != nil {
+			if err := ns.cleanupPath(path); err != nil {
+				e = fmt.Errorf("cleanup failed: %s: original error: %w", err.Error(), e)
+			}
+		}
+	}()
+
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// clean slate
+	if err := ns.cleanupPath(path); err != nil {
+		return 0, fmt.Errorf("cannot remove path %s: %w", path, err)
+	}
+
+	// get path info
+	info, err := ns.fs.Stat(path)
+	if err != nil {
+		// attempt to create directory
+		if err := ns.fs.Mkdir(path, 0755); err != nil {
+			return 0, fmt.Errorf("cannot make directory %s: %w", path, err)
+		}
+		// re-retrieve info
+		info, err = ns.fs.Stat(path)
+		if err != nil {
+			return 0, fmt.Errorf("cannot retrieve info for directory %s: %w", path, err)
+		}
+	}
+
+	// ensure that path is a directory
+	if !info.IsDir() {
+		return 0, fmt.Errorf("not a directory: %s", path)
+	}
+
+	errCh := make(chan error, 1)
+	noteCh := make(chan Note, len(notes))
+
+	go func() {
+		sem := make(chan struct{}, 50) // ensure no more than 50 concurrent operations
+		for _, n := range notes {
+			// check whether operation has ended
+			select {
+			case <-ctxWithCancel.Done():
+				return
+			default:
+			}
+			// otherwise continue for current note
+			sem <- struct{}{}
+			go func(n Note) {
+				defer func() {
+					<-sem
+				}()
+				// save note
+				filePath, err := ns.generateUniqueFilePath(path, n.filename(), "json", 0)
+				if err != nil {
+					errCh <- fmt.Errorf("cannot generate unique file path: %w", err)
+					return
+				}
+				buf := bytes.NewBuffer(nil)
+				if err := json.NewEncoder(buf).Encode(&n); err != nil {
+					errCh <- fmt.Errorf("cannot parse json: %w", err)
+					return
+				}
+				if err := ioutil.WriteFile(filePath, buf.Bytes(), 0644); err != nil {
+					errCh <- fmt.Errorf("note %s: %w", n.ID, err)
+					return
+				}
+
+				noteCh <- n
+			}(n)
+		}
+	}()
+
+	total := len(notes)
+	count := 0
+
+	for {
+		select {
+		case err := <-errCh:
+			cancel()
+			return 0, fmt.Errorf("failed to create note: %w", err)
+		case <-noteCh:
+			count++
+			if count == total {
+				return count, nil
+			}
+		}
+	}
+}
+
 // parseFromFile parses a Note from the provided file path
 func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (Note, error) {
 	b, err := ns.fs.ReadFile(path)
@@ -109,6 +204,43 @@ func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (Note
 	}
 
 	return n, nil
+}
+
+// cleanupPath removes the provided path and all descendents
+func (ns *NoteService) cleanupPath(outPath string) error {
+	return ns.fs.RemoveAll(outPath)
+}
+
+// generateUniqueFilePath generates a unique file path from the provided arguments
+func (ns *NoteService) generateUniqueFilePath(dir, base, ext string, i int) (string, error) {
+	if i > 50 {
+		return "", fmt.Errorf("cannot increment %d times", i)
+	}
+
+	var suffix string
+	if i > 0 {
+		suffix = fmt.Sprintf("_%d", i)
+	}
+
+	fileName := fmt.Sprintf("%s%s.%s", base, suffix, ext)
+
+	fullPath, err := ns.fs.Abs(dir, fileName)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse absolute path: %w", err)
+	}
+
+	_, err = ns.fs.Stat(fullPath)
+
+	switch {
+	case err == nil:
+		// file already exists, increment suffix and try again
+		return ns.generateUniqueFilePath(dir, base, ext, i+1)
+	case !ns.fs.IsNotExist(err):
+		// something else went wrong
+		return "", err
+	default:
+		return fullPath, nil
+	}
 }
 
 // NewNoteService returns a new NoteService using the provided FileSystem
