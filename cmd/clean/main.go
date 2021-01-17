@@ -11,9 +11,12 @@ import (
 )
 
 func main() {
-	fs := domain.NewFileSystemService(&domain.OsFileSystem{})
+	osfs := &domain.OsFileSystem{}
 
-	if err := run(fs); err != nil {
+	fs := domain.NewFileSystemService(osfs)
+	ns := domain.NewNoteService(osfs)
+
+	if err := run(fs, ns); err != nil {
 		log.Fatalf("failed: %s", err.Error())
 	}
 
@@ -21,7 +24,7 @@ func main() {
 }
 
 // run executes our business logic
-func run(fs *domain.FileSystemService) error {
+func run(fs *domain.FileSystemService, ns *domain.NoteService) error {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	var inPath, outPath string
@@ -59,7 +62,7 @@ func run(fs *domain.FileSystemService) error {
 
 	log.Println("parsing notes...")
 
-	notes, err := domain.ParseRawNotes(dirs, outPath)
+	notes, err := ns.ParseFromDirs(dirs)
 	if err != nil {
 		return err
 	}

@@ -40,9 +40,7 @@ func (f *FileSystemService) DirExists(path string) error {
 
 // ParseAbsPath parses the absolute path of the provided components and assigns top val
 func (f *FileSystemService) ParseAbsPath(val *string, parts ...string) error {
-	joined := strings.Join(parts, string(os.PathSeparator))
-
-	abs, err := f.fs.Abs(joined)
+	abs, err := f.fs.Abs(parts...)
 	if err != nil {
 		return fmt.Errorf("absolute path failed: %w", err)
 	}
@@ -59,13 +57,21 @@ func NewFileSystemService(fs FileSystem) *FileSystemService {
 
 // FileSystem implements the behaviours of a file system
 type FileSystem interface {
+	ReadFile(path string) ([]byte, error)
 	ReadDir(path string) ([]FileInfo, error)
 	DirExists(path string) error
-	Abs(path string) (string, error)
+	Abs(pathParts ...string) (string, error)
+	Dir(path string) string
+	Base(path string) string
 }
 
 // OsFileSystem implements FileSystem for the local filesystem
 type OsFileSystem struct{}
+
+// ReadFile implements FileSystem.ReadFile()
+func (o *OsFileSystem) ReadFile(path string) ([]byte, error) {
+	return ioutil.ReadFile(path)
+}
 
 // ReadDir implements FileSystem.ReadDir()
 func (o *OsFileSystem) ReadDir(path string) ([]FileInfo, error) {
@@ -102,8 +108,19 @@ func (o *OsFileSystem) DirExists(path string) error {
 }
 
 // Abs implements FileSystem.Abs()
-func (o *OsFileSystem) Abs(path string) (string, error) {
-	return filepath.Abs(path)
+func (o *OsFileSystem) Abs(pathParts ...string) (string, error) {
+	joined := strings.Join(pathParts, string(os.PathSeparator))
+	return filepath.Abs(joined)
+}
+
+// Dir implements FileSystem.Dir()
+func (o *OsFileSystem) Dir(path string) string {
+	return filepath.Dir(path)
+}
+
+// Base implements FileSystem.Base()
+func (o *OsFileSystem) Base(path string) string {
+	return filepath.Base(path)
 }
 
 // FileInfo defines the behaviours of a file info object
