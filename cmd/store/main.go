@@ -5,60 +5,57 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"reorg/pkg/app"
 	"reorg/pkg/domain"
-	"reorg/pkg/fs"
-	"strings"
 )
 
 func main() {
-	if err := run(); err != nil {
+	fs := domain.NewFileSystemService(&domain.OsFileSystem{})
+
+	if err := run(fs); err != nil {
 		log.Fatalf("failed: %s", err.Error())
 	}
+
 	log.Println("process complete!")
 }
 
 // run executes our business logic
-func run() error {
+func run(fs *domain.FileSystemService) error {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	flagI := flag.String("i", "", "relative path to directory of cleaned files with manifest")
-	flag.Parse()
-
-	inPath, err := fs.ParseDirFlag(flagI)
-	if err != nil {
-		return fmt.Errorf("cannot parse -i: %w", err)
+	var inPath string
+	if err := parseFlag(&inPath); err != nil {
+		return fmt.Errorf("cannot parse flag: %w", err)
 	}
 
-	manifestPath := strings.Join([]string{inPath, "manifest.json"}, string(os.PathSeparator))
-	manifestPath, err = filepath.Abs(manifestPath)
-	if err != nil {
-		return fmt.Errorf("absolute manifest path failed: %w", err)
+	if err := fs.DirExists(inPath); err != nil {
+		return fmt.Errorf("cannot find %s: %w", inPath, err)
+	}
+
+	var manifestPath string
+	if err := fs.ParseAbsPath(&manifestPath, inPath, "manifest.json"); err != nil {
+		return fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
 	log.Printf("scanning directory: %s", inPath)
-	files, err := fs.GetChildPaths(inPath, false)
+	files, err := fs.GetChildPaths(
+		inPath,
+		&domain.IsNotDir{},
+		&domain.IsJSON{},
+		&domain.IsNotName{BaseNames: []string{"manifest.json"}},
+	)
 	if err != nil {
 		return err
 	}
 
-	var jsonFiles []string
-	for _, f := range files {
-		if strings.HasSuffix(f, ".json") && filepath.Base(f) != "manifest.json" {
-			jsonFiles = append(jsonFiles, f)
-		}
-	}
-
-	if len(jsonFiles) == 0 {
+	if len(files) == 0 {
 		return fmt.Errorf("no json files found in parent: %s", inPath)
 	}
 
-	log.Printf("%d note files to move", len(jsonFiles))
+	log.Printf("%d note files to move", len(files))
 
 	log.Println("parsing notes from files...")
-	notes, err := domain.ParseNotesFromPaths(jsonFiles)
+	notes, err := domain.ParseNotesFromPaths(files)
 	if err != nil {
 		return fmt.Errorf("cannot parse notes: %w", err)
 	}
@@ -93,6 +90,26 @@ func run() error {
 	if err := domain.MoveNotesToStorage(notes, manifest, store); err != nil {
 		return fmt.Errorf("moving notes failed: %w", err)
 	}
+
+	return nil
+}
+
+// parseFlag parses and sanity checks the required flag
+func parseFlag(i *string) error {
+	flagI := flag.String("i", "", "relative path to directory of cleaned files with manifest")
+	flag.Parse()
+
+	if flagI == nil {
+		return errors.New("-i is missing")
+	}
+
+	valI := *flagI
+
+	if valI == "" {
+		return errors.New("-i is empty")
+	}
+
+	*i = valI
 
 	return nil
 }
