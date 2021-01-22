@@ -85,7 +85,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 
 	go func() {
 		sem := make(chan struct{}, 50) // ensure no more than 50 concurrent operations
-		for _, n := range notes {
+		for idx, n := range notes {
 			// check whether operation has ended
 			select {
 			case <-ctxWithCancel.Done():
@@ -94,14 +94,14 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 			}
 			// otherwise continue for current note
 			sem <- struct{}{}
-			go func(n *Note) {
+			go func(n *Note, idx int) {
 				defer func() {
 					<-sem
 				}()
 				// save note
-				filePath, err := ns.generateUniqueFilePath(path, n.filename(), "json", 0)
+				filePath, err := ns.generateFilePath(path, n.filename(), "json", idx)
 				if err != nil {
-					errCh <- fmt.Errorf("cannot generate unique file path: %w", err)
+					errCh <- fmt.Errorf("cannot generate file path: %w", err)
 					return
 				}
 				buf := bytes.NewBuffer(nil)
@@ -115,7 +115,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 				}
 
 				noteCh <- n
-			}(n)
+			}(n, idx)
 		}
 	}()
 
@@ -129,6 +129,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 			return 0, fmt.Errorf("failed to create note: %w", err)
 		case <-noteCh:
 			count++
+			log.Printf("written note %d/%d", count, total)
 			if count == total {
 				return count, nil
 			}
@@ -172,12 +173,8 @@ func (ns *NoteService) cleanupPath(outPath string) error {
 	return ns.fs.RemoveAll(outPath)
 }
 
-// generateUniqueFilePath generates a unique file path from the provided arguments
-func (ns *NoteService) generateUniqueFilePath(dir, base, ext string, i int) (string, error) {
-	if i > 50 {
-		return "", fmt.Errorf("cannot increment %d times", i)
-	}
-
+// generateFilePath generates a file path from the provided arguments
+func (ns *NoteService) generateFilePath(dir, base, ext string, i int) (string, error) {
 	var suffix string
 	if i > 0 {
 		suffix = fmt.Sprintf("_%d", i)
@@ -190,18 +187,7 @@ func (ns *NoteService) generateUniqueFilePath(dir, base, ext string, i int) (str
 		return "", fmt.Errorf("cannot parse absolute path: %w", err)
 	}
 
-	_, err = ns.fs.Stat(fullPath)
-
-	switch {
-	case err == nil:
-		// file already exists, increment suffix and try again
-		return ns.generateUniqueFilePath(dir, base, ext, i+1)
-	case !ns.fs.IsNotExist(err):
-		// something else went wrong
-		return "", err
-	default:
-		return fullPath, nil
-	}
+	return fullPath, nil
 }
 
 // NewNoteService returns a new NoteService using the provided FileSystem
