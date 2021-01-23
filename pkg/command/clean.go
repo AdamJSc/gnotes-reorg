@@ -30,29 +30,29 @@ func (c *Clean) Run() error {
 
 	var err error
 
-	c.inPath, err = c.Files.ParseAbsPath(ctx, c.inPath, "Other")
+	c.inPath, err = c.Files.ParseAbsPath(c.inPath, "Other")
 	if err != nil {
 		return fmt.Errorf("cannot parse absolute path %s: %w", c.inPath, err)
 	}
 
-	c.outPath, err = c.Files.ParseAbsPath(ctx, c.outPath)
+	c.outPath, err = c.Files.ParseAbsPath(c.outPath)
 	if err != nil {
 		return fmt.Errorf("cannot parse absolute path %s: %w", c.outPath, err)
 	}
 
-	if err := c.Files.DirExists(ctx, c.inPath); err != nil {
+	if err := c.Files.DirExists(c.inPath); err != nil {
 		return fmt.Errorf("cannot find %s: %w", c.inPath, err)
 	}
 
-	if err := c.Files.DirExists(ctx, c.outPath); err != nil {
-		if err := c.Files.MakeDir(ctx, c.outPath); err != nil {
+	if err := c.Files.DirExists(c.outPath); err != nil {
+		if err := c.Files.MakeDir(c.outPath); err != nil {
 			return fmt.Errorf("cannot create directory %s: %w", c.outPath, err)
 		}
 	}
 
 	log.Printf("scanning directory: %s", c.inPath)
 
-	dirs, err := c.Files.GetChildPaths(ctx, c.inPath, &domain.IsDir{})
+	dirs, err := c.Files.GetChildPaths(c.inPath, &domain.IsDir{})
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (c *Clean) Run() error {
 
 	log.Println("parsing notes...")
 
-	notes, err := c.Notes.ParseFromDirs(ctx, dirs)
+	notes, err := c.parseNotesFromRawDirs(dirs)
 	if err != nil {
 		return err
 	}
@@ -119,4 +119,40 @@ func (c *Clean) parseFlags() error {
 	c.outPath = valO
 
 	return nil
+}
+
+// parseNotesFromRawDirs parses Notes from the provided raw directory paths
+func (c *Clean) parseNotesFromRawDirs(paths []string) ([]domain.Note, error) {
+	var notes []domain.Note
+
+	for _, p := range paths {
+		pathToRaw, err := c.Files.ParseAbsPath(p, "content.html")
+		if err != nil {
+			return nil, fmt.Errorf("cannot get absolute file path: %w", err)
+		}
+
+		// id is final directory name of provided directory path
+		id := c.Files.ParseBase(p)
+
+		n, err := c.Notes.ParseFromRawFile(pathToRaw, id)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse note from file %s: %w", p, err)
+		}
+
+		notes = append(notes, n)
+	}
+
+	return notes, nil
+}
+
+// enrichNotesWithParentDir enriches the provided Notes with the provided parent directory value
+func enrichNotesWithParentDir(notes []domain.Note, parentDir string) []domain.Note {
+	var enriched []domain.Note
+
+	for _, n := range notes {
+		n.ParentDir = parentDir
+		enriched = append(enriched, n)
+	}
+
+	return enriched
 }

@@ -20,31 +20,39 @@ type NoteService struct {
 	fs FileSystem
 }
 
-// ParseFromDirs parses Notes from the provided directory paths
-func (ns *NoteService) ParseFromDirs(ctx context.Context, paths []string) ([]*Note, error) {
-	var notes []*Note
-
-	for _, p := range paths {
-		contentPath, err := ns.fs.Abs(p, "content.html")
-		if err != nil {
-			return nil, fmt.Errorf("cannot get absolute file path: %w", err)
-		}
-
-		id := ns.fs.Base(p)
-
-		n, err := ns.parseFromFile(ctx, contentPath, id)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse note from file %s: %w", p, err)
-		}
-
-		notes = append(notes, n)
+// ParseFromRawFile parses a Note from raw source at the provided file path
+func (ns *NoteService) ParseFromRawFile(path, id string) (Note, error) {
+	b, err := ns.fs.ReadFile(path)
+	if err != nil {
+		return Note{}, err
 	}
 
-	return notes, nil
+	content := string(b)
+	sanitised, err := sanitiseInput(content)
+	if err != nil {
+		return Note{}, err
+	}
+
+	n := Note{
+		ID:           id,
+		OriginalPath: path,
+	}
+
+	if err := parseTitle(sanitised, &n.Title); err != nil {
+		return Note{}, err
+	}
+	if err := parseTimestamp(sanitised, &n.Timestamp); err != nil {
+		return Note{}, err
+	}
+	if err := parseNoteContent(sanitised, &n.Content); err != nil {
+		return Note{}, err
+	}
+
+	return n, nil
 }
 
 // WriteToDir outputs the provided notes to individual files within the provided output path
-func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path string) (n int, e error) {
+func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string) (n int, e error) {
 	defer func() {
 		if e != nil {
 			if err := ns.cleanupPath(path); err != nil {
@@ -81,7 +89,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 	}
 
 	errCh := make(chan error, 1)
-	noteCh := make(chan *Note, len(notes))
+	noteCh := make(chan Note, len(notes))
 
 	go func() {
 		sem := make(chan struct{}, 50) // ensure no more than 50 concurrent operations
@@ -94,7 +102,7 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 			}
 			// otherwise continue for current note
 			sem <- struct{}{}
-			go func(n *Note, idx int) {
+			go func(n Note, idx int) {
 				defer func() {
 					<-sem
 				}()
@@ -135,37 +143,6 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []*Note, path strin
 			}
 		}
 	}
-}
-
-// parseFromFile parses a Note from the provided file path
-func (ns *NoteService) parseFromFile(ctx context.Context, path, id string) (*Note, error) {
-	b, err := ns.fs.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	content := string(b)
-	sanitised, err := sanitiseInput(content)
-	if err != nil {
-		return nil, err
-	}
-
-	n := &Note{
-		ID:           id,
-		OriginalPath: path,
-	}
-
-	if err := parseTitle(sanitised, &n.Title); err != nil {
-		return nil, err
-	}
-	if err := parseTimestamp(sanitised, &n.Timestamp); err != nil {
-		return nil, err
-	}
-	if err := parseNoteContent(sanitised, &n.Content); err != nil {
-		return nil, err
-	}
-
-	return n, nil
 }
 
 // cleanupPath removes the provided path and all descendents

@@ -14,7 +14,7 @@ const maxFnameTitleLen = 30
 // Note represents a single Note
 type Note struct {
 	ID           string    `json:"id"`           // numeric gnotes id
-	Path         string    `json:"-"`            // parent directory of note once cleaned (inflated, not stored)
+	ParentDir    string    `json:"-"`            // parent directory of note once cleaned (inflated, not stored)
 	Category     string    `json:"-"`            // category of note (inflated, not stored)
 	OriginalPath string    `json:"originalPath"` // original full-qualified path to note html source file
 	Title        string    `json:"title"`        // title of the note

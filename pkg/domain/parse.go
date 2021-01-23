@@ -67,7 +67,7 @@ func ParseNotesFromPaths(paths []string) ([]*Note, error) {
 			return nil, fmt.Errorf("cannot json decode file payload as note %s: %w", p, err)
 		}
 
-		n.Path = p
+		n.ParentDir = p
 
 		notes = append(notes, n)
 	}
