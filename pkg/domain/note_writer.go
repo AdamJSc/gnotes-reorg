@@ -37,6 +37,29 @@ func (j *JSONNoteWriter) Write(ni noteWithIndex) error {
 	return nil
 }
 
+// TxtNoteWriter writes a Note as a text file
+type TxtNoteWriter struct {
+	NoteWriter
+	Files *FileSystemService
+}
+
+// Write implements NoteWriter
+func (t *TxtNoteWriter) Write(ni noteWithIndex) error {
+	// save note
+	filePath, err := generateAbsFilePath(t.Files, ni.note.ParentDir, ni.note.filename(), "txt", ni.idx)
+	if err != nil {
+		return fmt.Errorf("cannot generate file path: %w", err)
+	}
+
+	content := []byte(ni.note.Content)
+
+	if err := t.Files.WriteFile(filePath, content, 0644); err != nil {
+		return fmt.Errorf("cannot write note with id %s: %w", ni.note.ID, err)
+	}
+
+	return nil
+}
+
 // generateAbsFilePath generates a file path from the provided arguments
 func generateAbsFilePath(fs *FileSystemService, dir, name, ext string, i int) (string, error) {
 	var suffix string
