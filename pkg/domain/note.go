@@ -46,3 +46,9 @@ func (n *Note) filename() string {
 	}
 	return fileName
 }
+
+// noteWithIndex encapsulates a Note with an index value
+type noteWithIndex struct {
+	note Note
+	idx  int
+}

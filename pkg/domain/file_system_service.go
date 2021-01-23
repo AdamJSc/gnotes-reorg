@@ -29,6 +29,11 @@ func (f *FileSystemService) GetChildPaths(parent string, validators ...FileValid
 	return paths, nil
 }
 
+// WriteFile writes the provided data to the provided path using the provided file permissions
+func (f *FileSystemService) WriteFile(path string, data []byte, perm uint32) error {
+	return f.fs.WriteFile(path, data, perm)
+}
+
 // DirExists returns an error if the provided path does not exist as a directory
 func (f *FileSystemService) DirExists(path string) error {
 	return f.fs.DirExists(path)
@@ -37,6 +42,11 @@ func (f *FileSystemService) DirExists(path string) error {
 // MakeDir attempts to make the directory at the given path
 func (f *FileSystemService) MakeDir(path string) error {
 	return f.fs.Mkdir(path, 0755)
+}
+
+// RemoveAll removess everything nested at the given path
+func (f *FileSystemService) RemoveAll(path string) error {
+	return f.fs.RemoveAll(path)
 }
 
 // ParseAbsPath parses the absolute path of the provided components

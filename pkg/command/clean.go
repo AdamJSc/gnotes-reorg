@@ -44,12 +44,6 @@ func (c *Clean) Run() error {
 		return fmt.Errorf("cannot find %s: %w", c.inPath, err)
 	}
 
-	if err := c.Files.DirExists(c.outPath); err != nil {
-		if err := c.Files.MakeDir(c.outPath); err != nil {
-			return fmt.Errorf("cannot create directory %s: %w", c.outPath, err)
-		}
-	}
-
 	log.Printf("scanning directory: %s", c.inPath)
 
 	dirs, err := c.Files.GetChildPaths(c.inPath, &domain.IsDir{})
@@ -74,6 +68,8 @@ func (c *Clean) Run() error {
 		return err
 	}
 
+	notes = enrichNotesWithParentDir(notes, c.outPath)
+
 	log.Printf("parsed %d notes\n", len(notes))
 	log.Printf("writing to directory: %s", c.outPath)
 	log.Println("this will reset its existing contents")
@@ -82,7 +78,19 @@ func (c *Clean) Run() error {
 		return errors.New("aborted")
 	}
 
-	n, err := c.Notes.WriteToDir(ctx, notes, c.outPath)
+	// clear output directory
+	if err := c.Files.RemoveAll(c.outPath); err != nil {
+		return fmt.Errorf("cannot remove directory %s: %w", c.outPath, err)
+	}
+
+	// recreate output directory
+	if err := c.Files.MakeDir(c.outPath); err != nil {
+		return fmt.Errorf("cannot create directory %s: %w", c.outPath, err)
+	}
+
+	wr := &domain.JSONNoteWriter{Files: c.Files}
+
+	n, err := c.Notes.WriteNotes(ctx, notes, wr)
 	if err != nil {
 		return err
 	}

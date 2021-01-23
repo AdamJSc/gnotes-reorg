@@ -1,12 +1,9 @@
 package domain
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"regexp"
 	"strings"
@@ -51,42 +48,10 @@ func (ns *NoteService) ParseFromRawFile(path, id string) (Note, error) {
 	return n, nil
 }
 
-// WriteToDir outputs the provided notes to individual files within the provided output path
-func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string) (n int, e error) {
-	defer func() {
-		if e != nil {
-			if err := ns.cleanupPath(path); err != nil {
-				e = fmt.Errorf("cleanup failed: %s: original error: %w", err.Error(), e)
-			}
-		}
-	}()
-
+// WriteNotes writes the provided notes using the provided NoteWriter
+func (ns *NoteService) WriteNotes(ctx context.Context, notes []Note, nw NoteWriter) (int, error) {
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	// clean slate
-	if err := ns.cleanupPath(path); err != nil {
-		return 0, fmt.Errorf("cannot remove path %s: %w", path, err)
-	}
-
-	// get path info
-	info, err := ns.fs.Stat(path)
-	if err != nil {
-		// attempt to create directory
-		if err := ns.fs.Mkdir(path, 0755); err != nil {
-			return 0, fmt.Errorf("cannot make directory %s: %w", path, err)
-		}
-		// re-retrieve info
-		info, err = ns.fs.Stat(path)
-		if err != nil {
-			return 0, fmt.Errorf("cannot retrieve info for directory %s: %w", path, err)
-		}
-	}
-
-	// ensure that path is a directory
-	if !info.IsDir() {
-		return 0, fmt.Errorf("not a directory: %s", path)
-	}
 
 	errCh := make(chan error, 1)
 	noteCh := make(chan Note, len(notes))
@@ -100,25 +65,16 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string
 				return
 			default:
 			}
+
 			// otherwise continue for current note
 			sem <- struct{}{}
 			go func(n Note, idx int) {
 				defer func() {
 					<-sem
 				}()
-				// save note
-				filePath, err := ns.generateFilePath(path, n.filename(), "json", idx)
-				if err != nil {
-					errCh <- fmt.Errorf("cannot generate file path: %w", err)
-					return
-				}
-				buf := bytes.NewBuffer(nil)
-				if err := json.NewEncoder(buf).Encode(&n); err != nil {
-					errCh <- fmt.Errorf("cannot parse json: %w", err)
-					return
-				}
-				if err := ioutil.WriteFile(filePath, buf.Bytes(), 0644); err != nil {
-					errCh <- fmt.Errorf("note %s: %w", n.ID, err)
+
+				if err := nw.Write(noteWithIndex{note: n, idx: idx}); err != nil {
+					errCh <- fmt.Errorf("error writing note %d: %w", idx, err)
 					return
 				}
 
@@ -143,28 +99,6 @@ func (ns *NoteService) WriteToDir(ctx context.Context, notes []Note, path string
 			}
 		}
 	}
-}
-
-// cleanupPath removes the provided path and all descendents
-func (ns *NoteService) cleanupPath(outPath string) error {
-	return ns.fs.RemoveAll(outPath)
-}
-
-// generateFilePath generates a file path from the provided arguments
-func (ns *NoteService) generateFilePath(dir, base, ext string, i int) (string, error) {
-	var suffix string
-	if i > 0 {
-		suffix = fmt.Sprintf("_%d", i)
-	}
-
-	fileName := fmt.Sprintf("%s%s.%s", base, suffix, ext)
-
-	fullPath, err := ns.fs.Abs(dir, fileName)
-	if err != nil {
-		return "", fmt.Errorf("cannot parse absolute path: %w", err)
-	}
-
-	return fullPath, nil
 }
 
 // NewNoteService returns a new NoteService using the provided FileSystem

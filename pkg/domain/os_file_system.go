@@ -9,11 +9,18 @@ import (
 )
 
 // OsFileSystem implements FileSystem for the local filesystem
-type OsFileSystem struct{}
+type OsFileSystem struct {
+	FileSystem
+}
 
 // ReadFile implements FileSystem.ReadFile()
 func (o *OsFileSystem) ReadFile(path string) ([]byte, error) {
 	return ioutil.ReadFile(path)
+}
+
+// ReadFile implements FileSystem.ReadFile()
+func (o *OsFileSystem) WriteFile(path string, data []byte, perm uint32) error {
+	return ioutil.WriteFile(path, data, os.FileMode(perm))
 }
 
 // ReadDir implements FileSystem.ReadDir()
@@ -86,11 +93,6 @@ func (o *OsFileSystem) RemoveAll(path string) error {
 func (o *OsFileSystem) Abs(pathParts ...string) (string, error) {
 	joined := strings.Join(pathParts, string(os.PathSeparator))
 	return filepath.Abs(joined)
-}
-
-// Dir implements FileSystem.Dir()
-func (o *OsFileSystem) Dir(path string) string {
-	return filepath.Dir(path)
 }
 
 // Base implements FileSystem.Base()
