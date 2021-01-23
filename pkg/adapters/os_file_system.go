@@ -1,16 +1,17 @@
-package domain
+package adapters
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reorg/pkg/domain"
 	"strings"
 )
 
 // OsFileSystem implements FileSystem for the local filesystem
 type OsFileSystem struct {
-	FileSystem
+	domain.FileSystem
 }
 
 // ReadFile implements FileSystem.ReadFile()
@@ -24,13 +25,13 @@ func (o *OsFileSystem) WriteFile(path string, data []byte, perm uint32) error {
 }
 
 // ReadDir implements FileSystem.ReadDir()
-func (o *OsFileSystem) ReadDir(path string) ([]FileInfo, error) {
+func (o *OsFileSystem) ReadDir(path string) ([]domain.FileInfo, error) {
 	infos, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("os.ReadDir() failed: %w", err)
 	}
 
-	var fis []FileInfo
+	var fis []domain.FileInfo
 
 	for _, i := range infos {
 		fis = append(fis, &OsFileInfo{fi: i})
@@ -70,13 +71,13 @@ func (o *OsFileSystem) IsNotExist(err error) bool {
 }
 
 // Stat implements FileSystem.Stat()
-func (o *OsFileSystem) Stat(path string) (FileInfo, error) {
+func (o *OsFileSystem) Stat(path string) (domain.FileInfo, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("os.Stat() failed: %w", err)
 	}
 
-	return &OsFileInfo{info}, nil
+	return &OsFileInfo{fi: info}, nil
 }
 
 // Mkdir implements FileSystem.Mkdir()

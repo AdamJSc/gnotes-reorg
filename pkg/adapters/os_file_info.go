@@ -1,9 +1,13 @@
-package domain
+package adapters
 
-import "os"
+import (
+	"os"
+	"reorg/pkg/domain"
+)
 
 // OsFileInfo implements FileInfo for the local file system
 type OsFileInfo struct {
+	domain.FileInfo
 	fi os.FileInfo
 }
 

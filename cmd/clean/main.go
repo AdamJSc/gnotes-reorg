@@ -1,12 +1,13 @@
 package main
 
 import (
+	"reorg/pkg/adapters"
 	"reorg/pkg/command"
 	"reorg/pkg/domain"
 )
 
 func main() {
-	osfs := &domain.OsFileSystem{}
+	osfs := &adapters.OsFileSystem{}
 
 	command.Run(&command.Clean{
 		Files: domain.NewFileSystemService(osfs),
