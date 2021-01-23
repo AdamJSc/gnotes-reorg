@@ -41,15 +41,13 @@ func (f *FileSystemService) MakeDir(ctx context.Context, path string) error {
 }
 
 // ParseAbsPath parses the absolute path of the provided components and assigns top val
-func (f *FileSystemService) ParseAbsPath(ctx context.Context, val *string, parts ...string) error {
+func (f *FileSystemService) ParseAbsPath(ctx context.Context, parts ...string) (string, error) {
 	abs, err := f.fs.Abs(parts...)
 	if err != nil {
-		return fmt.Errorf("absolute path failed: %w", err)
+		return "", fmt.Errorf("absolute path failed: %w", err)
 	}
 
-	*val = abs
-
-	return nil
+	return abs, nil
 }
 
 // NewFileSystemService returns a new FileSystemService using the provided FileSystem
