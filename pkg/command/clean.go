@@ -17,6 +17,8 @@ type Clean struct {
 	runner
 	inPath  string
 	outPath string
+	jsonOut bool
+	txtOut  bool
 }
 
 // Run implements Runner
@@ -88,7 +90,13 @@ func (c *Clean) Run() error {
 		return fmt.Errorf("cannot create directory %s: %w", c.outPath, err)
 	}
 
-	wr := &domain.JSONNoteWriter{Files: c.Files}
+	var wr domain.NoteWriter
+	switch {
+	case c.jsonOut:
+		wr = &domain.JSONNoteWriter{Files: c.Files}
+	case c.txtOut:
+		wr = &domain.TxtNoteWriter{Files: c.Files}
+	}
 
 	n, err := c.Notes.WriteNotes(ctx, notes, wr)
 	if err != nil {
@@ -102,29 +110,26 @@ func (c *Clean) Run() error {
 
 // parseFlags parses and sanity checks the required flags
 func (c *Clean) parseFlags() error {
-	flagI := flag.String("i", "", "relative path to gnotes export directory")
-	flagO := flag.String("o", "", "relative path to output directory for cleaned notes")
+	i := flag.String("i", "", "relative path to gnotes export directory")
+	o := flag.String("o", "", "relative path to output directory for cleaned notes")
+	j := flag.Bool("json", false, "output cleaned notes as json files")
+	t := flag.Bool("txt", false, "output cleaned notes as txt files")
 	flag.Parse()
 
-	if flagI == nil {
-		return errors.New("-i is missing")
-	}
-	if flagO == nil {
-		return errors.New("-o is missing")
-	}
+	c.inPath = *i
+	c.outPath = *o
+	c.jsonOut = *j
+	c.txtOut = *t
 
-	valI := *flagI
-	valO := *flagO
-
-	if valI == "" {
+	if c.inPath == "" {
 		return errors.New("-i is empty")
 	}
-	if valO == "" {
+	if c.outPath == "" {
 		return errors.New("-o is empty")
 	}
-
-	c.inPath = valI
-	c.outPath = valO
+	if c.txtOut == c.jsonOut {
+		return errors.New("please specify either -json or -txt")
+	}
 
 	return nil
 }
