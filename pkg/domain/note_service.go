@@ -1,15 +1,26 @@
 package domain
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/microcosm-cc/bluemonday"
+)
+
+const (
+	titlePrefix      = "Back"
+	createTimePrefix = "Create Time: "
+	modTimePrefix    = "Modify Time: "
+	tsFormat         = "02/01/2006 15:04"
+	headerLines      = 5
 )
 
 // NoteService provides note-related functionality
@@ -46,6 +57,51 @@ func (ns *NoteService) ParseFromRawFile(path, id string) (Note, error) {
 	}
 
 	return n, nil
+}
+
+// ParseFromFile parses a Note from the provided source file path
+func (ns *NoteService) ParseFromFile(path string) (Note, error) {
+	payload, err := ns.fs.ReadFile(path)
+	if err != nil {
+		return Note{}, fmt.Errorf("cannot parse file %s as note: %w", path, err)
+	}
+
+	// parse json
+	r := bytes.NewReader(payload)
+	var n Note
+	if err := json.NewDecoder(r).Decode(&n); err != nil {
+		return Note{}, fmt.Errorf("cannot json decode payload in file %s as note: %w", path, err)
+	}
+
+	n.ParentDir = path
+
+	return n, nil
+}
+
+// ParseManifestFromPath returns a noteManifest parsed from the provided path
+func (ns *NoteService) ParseManifestFromPath(path string) (NoteManifest, error) {
+	m := NoteManifest{path: path}
+
+	// read contents of manifest file
+	payload, err := ns.fs.ReadFile(path)
+	if err != nil {
+		if !ns.fs.IsNotExist(err) {
+			return NoteManifest{}, fmt.Errorf("cannot parse existing manifest file %s: %w", path, err)
+		}
+		return m, nil
+	}
+
+	// check if file contents are empty
+	if len(payload) == 0 {
+		return m, nil
+	}
+
+	// parse manifest
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return NoteManifest{}, fmt.Errorf("cannot json decode payload at %s as manifest: %w", path, err)
+	}
+
+	return m, nil
 }
 
 // WriteNotes writes the provided notes using the provided NoteWriter
@@ -99,6 +155,47 @@ func (ns *NoteService) WriteNotes(ctx context.Context, notes []Note, nw NoteWrit
 			}
 		}
 	}
+}
+
+// FilterNotesByManifest returns the provided Notes based on the provided manifest
+//
+// If keepIfPresent is true, Notes will be retained that are present in the manifest,
+// otherwise they will be retained if they are not present in the manifest.
+func (ns *NoteService) FilterNotesByManifest(notes []Note, m NoteManifest, keepIfPresent bool) []Note {
+	var retained []Note
+
+	for _, n := range notes {
+		if m.IsSet(n.Filename()) == keepIfPresent {
+			retained = append(retained, n)
+		}
+	}
+
+	return retained
+}
+
+// SortNotesByFilenameDesc sorts the provided notes ordered descending by filename
+func (ns *NoteService) SortNotesByFilenameDesc(notes []Note) []Note {
+	sort.SliceStable(notes, func(i, j int) bool {
+		n1 := notes[i]
+		n2 := notes[j]
+		return strings.Compare(n1.Filename(), n2.Filename()) > 0
+	})
+
+	return notes
+}
+
+// SaveManifest saves the provided manifest
+func (ns *NoteService) SaveManifest(m NoteManifest) error {
+	b, err := json.Marshal(&m)
+	if err != nil {
+		return fmt.Errorf("cannot json encode manifest: %w", err)
+	}
+
+	if err := ns.fs.WriteFile(m.path, b, 0644); err != nil {
+		return fmt.Errorf("cannot write to file %s: %w", m.path, err)
+	}
+
+	return nil
 }
 
 // NewNoteService returns a new NoteService using the provided FileSystem

@@ -29,15 +29,15 @@ func (n *Note) MarshalJSON() ([]byte, error) {
 		Filename string `json:"filename"`
 		noteAlias
 	}{
-		Filename:  n.filename(),
+		Filename:  n.Filename(),
 		noteAlias: noteAlias(*n),
 	}
 
 	return json.Marshal(payload)
 }
 
-// filename returns a generated filename
-func (n *Note) filename() string {
+// Filename returns a generated filename
+func (n Note) Filename() string {
 	title := strings.ToLower(n.Title)
 	baseName := sanitize.BaseName(title)
 	fileName := fmt.Sprintf("%s_%s", n.Timestamp.Format("2006-01-02"), baseName)
@@ -45,6 +45,56 @@ func (n *Note) filename() string {
 		fileName = fmt.Sprintf("%s__", fileName[:maxFnameTitleLen])
 	}
 	return fileName
+}
+
+// NoteManifest maps a note filename to its category
+type NoteManifest struct {
+	path    string
+	content map[string]string
+}
+
+// Set assigns the provided category to the provided filename
+func (nm *NoteManifest) Set(filename, cat string) error {
+	if nm.content == nil {
+		nm.content = make(map[string]string)
+	}
+
+	if nm.IsSet(filename) {
+		return fmt.Errorf("filename %s already has category", filename)
+	}
+
+	nm.content[filename] = cat
+
+	return nil
+}
+
+// IsSet return true if existing filename already has a category
+func (nm *NoteManifest) IsSet(filename string) bool {
+	if nm.content == nil {
+		nm.content = make(map[string]string)
+	}
+
+	_, ok := nm.content[filename]
+
+	return ok
+}
+
+// MarshalJSON implements json.Marshaler
+func (nm *NoteManifest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(nm.content)
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (nm *NoteManifest) UnmarshalJSON(b []byte) error {
+	var content map[string]string
+
+	if err := json.Unmarshal(b, &content); err != nil {
+		return err
+	}
+
+	nm.content = content
+
+	return nil
 }
 
 // noteWithIndex encapsulates a Note with an index value

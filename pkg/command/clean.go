@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Clean represents out clean command
+// Clean represents our clean command
 type Clean struct {
 	Files *domain.FileSystemService
 	Notes *domain.NoteService

@@ -17,12 +17,12 @@ type StubStorage struct{ Storage }
 
 // Store implements Store method on Storage interface
 func (s *StubStorage) Store(ctx context.Context, n *Note) error {
-	log.Printf("processing %s...", n.filename())
+	log.Printf("processing %s...", n.Filename())
 	// TODO: implement me
 	return nil
 }
 
-func MoveNotesToStorage(notes []*Note, manifest noteManifest, store Storage) error {
+func MoveNotesToStorage(notes []*Note, manifest NoteManifest, store Storage) error {
 	log.Println("moving files to storage...")
 
 	errCh := make(chan error, 1)
@@ -52,12 +52,12 @@ func MoveNotesToStorage(notes []*Note, manifest noteManifest, store Storage) err
 				// ok to process note...
 
 				if err := populateNoteCategory(n, manifest); err != nil {
-					errCh <- fmt.Errorf("error populating category for note %s: %w", n.filename(), err)
+					errCh <- fmt.Errorf("error populating category for note %s: %w", n.Filename(), err)
 					return
 				}
 
 				if err := store.Store(ctx, n); err != nil {
-					errCh <- fmt.Errorf("error moving note %s to storage: %w", n.filename(), err)
+					errCh <- fmt.Errorf("error moving note %s to storage: %w", n.Filename(), err)
 					return
 				}
 
@@ -73,7 +73,7 @@ func MoveNotesToStorage(notes []*Note, manifest noteManifest, store Storage) err
 		select {
 		case n := <-noteCh:
 			count++
-			log.Printf("success #%d/%d: %s", count, total, n.filename())
+			log.Printf("success #%d/%d: %s", count, total, n.Filename())
 			if count == total {
 				return nil
 			}
@@ -85,9 +85,9 @@ func MoveNotesToStorage(notes []*Note, manifest noteManifest, store Storage) err
 }
 
 // populateNoteCategory adds a Category value to the provided Note
-func populateNoteCategory(n *Note, manifest noteManifest) error {
-	f := n.filename()
-	cat, ok := manifest[f]
+func populateNoteCategory(n *Note, manifest NoteManifest) error {
+	f := n.Filename()
+	cat, ok := manifest.content[f]
 	if !ok {
 		return errors.New("category not found")
 	}
