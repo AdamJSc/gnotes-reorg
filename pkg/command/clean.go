@@ -27,9 +27,6 @@ func (c *Clean) Run() error {
 		return fmt.Errorf("cannot parse flags: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
-	defer cancel()
-
 	var err error
 
 	c.inPath, err = c.Files.ParseAbsPath(c.inPath, "Other")
@@ -43,14 +40,14 @@ func (c *Clean) Run() error {
 	}
 
 	if err := c.Files.DirExists(c.inPath); err != nil {
-		return fmt.Errorf("cannot find %s: %w", c.inPath, err)
+		return fmt.Errorf("cannot find directory %s: %w", c.inPath, err)
 	}
 
 	log.Printf("scanning directory: %s", c.inPath)
 
 	dirs, err := c.Files.GetChildPaths(c.inPath, &domain.IsDir{})
 	if err != nil {
-		return err
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	if len(dirs) == 0 {
@@ -97,6 +94,9 @@ func (c *Clean) Run() error {
 	case c.txtOut:
 		wr = &domain.TxtNoteWriter{Files: c.Files}
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
 
 	n, err := c.Notes.WriteNotes(ctx, notes, wr)
 	if err != nil {
