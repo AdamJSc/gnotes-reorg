@@ -3,7 +3,6 @@ package command
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"reorg/pkg/adapters"
@@ -14,45 +13,45 @@ import (
 // Clean represents our clean command
 type Clean struct {
 	runner
+	InPath  string
+	OutPath string
+	JSONOut bool
+	TxtOut  bool
 	Files   *domain.FileSystemService
 	Notes   *domain.NoteService
-	inPath  string
-	outPath string
-	jsonOut bool
-	txtOut  bool
 }
 
 // Run implements Runner
 func (c *Clean) Run() error {
-	if err := c.parseFlags(); err != nil {
-		return fmt.Errorf("cannot parse flags: %w", err)
+	if err := c.validate(); err != nil {
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	var err error
 
-	c.inPath, err = c.Files.ParseAbsPath(c.inPath, "Other")
+	c.InPath, err = c.Files.ParseAbsPath(c.InPath, "Other")
 	if err != nil {
-		return fmt.Errorf("cannot parse absolute path %s: %w", c.inPath, err)
+		return fmt.Errorf("cannot parse absolute path %s: %w", c.InPath, err)
 	}
 
-	c.outPath, err = c.Files.ParseAbsPath(c.outPath)
+	c.OutPath, err = c.Files.ParseAbsPath(c.OutPath)
 	if err != nil {
-		return fmt.Errorf("cannot parse absolute path %s: %w", c.outPath, err)
+		return fmt.Errorf("cannot parse absolute path %s: %w", c.OutPath, err)
 	}
 
-	if err := c.Files.DirExists(c.inPath); err != nil {
-		return fmt.Errorf("cannot find directory %s: %w", c.inPath, err)
+	if err := c.Files.DirExists(c.InPath); err != nil {
+		return fmt.Errorf("cannot find directory %s: %w", c.InPath, err)
 	}
 
-	log.Printf("scanning directory: %s", c.inPath)
+	log.Printf("scanning directory: %s", c.InPath)
 
-	dirs, err := c.Files.GetChildPaths(c.inPath, &domain.IsDir{})
+	dirs, err := c.Files.GetChildPaths(c.InPath, &domain.IsDir{})
 	if err != nil {
 		return fmt.Errorf("validation error: %w", err)
 	}
 
 	if len(dirs) == 0 {
-		return fmt.Errorf("no directories found in parent: %s", c.inPath)
+		return fmt.Errorf("no directories found in parent: %s", c.InPath)
 	}
 
 	log.Printf("%d directories to search for note files", len(dirs))
@@ -68,10 +67,10 @@ func (c *Clean) Run() error {
 		return err
 	}
 
-	notes = enrichNotesWithParentDir(notes, c.outPath)
+	notes = enrichNotesWithParentDir(notes, c.OutPath)
 
 	log.Printf("parsed %d notes\n", len(notes))
-	log.Printf("writing to directory: %s", c.outPath)
+	log.Printf("writing to directory: %s", c.OutPath)
 	log.Println("this will reset its existing contents")
 
 	if !cont() {
@@ -79,20 +78,20 @@ func (c *Clean) Run() error {
 	}
 
 	// clear output directory
-	if err := c.Files.RemoveAll(c.outPath); err != nil {
-		return fmt.Errorf("cannot remove directory %s: %w", c.outPath, err)
+	if err := c.Files.RemoveAll(c.OutPath); err != nil {
+		return fmt.Errorf("cannot remove directory %s: %w", c.OutPath, err)
 	}
 
 	// recreate output directory
-	if err := c.Files.MakeDir(c.outPath); err != nil {
-		return fmt.Errorf("cannot create directory %s: %w", c.outPath, err)
+	if err := c.Files.MakeDir(c.OutPath); err != nil {
+		return fmt.Errorf("cannot create directory %s: %w", c.OutPath, err)
 	}
 
 	var wr domain.NoteWriter
 	switch {
-	case c.jsonOut:
+	case c.JSONOut:
 		wr = &adapters.JSONNoteWriter{Files: c.Files}
-	case c.txtOut:
+	case c.TxtOut:
 		wr = &adapters.TxtNoteWriter{Files: c.Files}
 	}
 
@@ -109,27 +108,16 @@ func (c *Clean) Run() error {
 	return nil
 }
 
-// parseFlags parses and sanity checks the required flags
-func (c *Clean) parseFlags() error {
-	i := flag.String("i", "", "relative path to gnotes export directory")
-	o := flag.String("o", "", "relative path to output directory for cleaned notes")
-	j := flag.Bool("json", false, "output cleaned notes as json files")
-	t := flag.Bool("txt", false, "output cleaned notes as txt files")
-	flag.Parse()
-
-	c.inPath = *i
-	c.outPath = *o
-	c.jsonOut = *j
-	c.txtOut = *t
-
-	if c.inPath == "" {
-		return errors.New("-i is empty")
+// validate sanity checks the input variables
+func (c *Clean) validate() error {
+	if c.InPath == "" {
+		return errors.New("input path is empty")
 	}
-	if c.outPath == "" {
-		return errors.New("-o is empty")
+	if c.OutPath == "" {
+		return errors.New("output path is empty")
 	}
-	if c.txtOut == c.jsonOut {
-		return errors.New("please specify either -json or -txt")
+	if c.TxtOut == c.JSONOut {
+		return errors.New("please specify either json or txt output")
 	}
 
 	return nil
