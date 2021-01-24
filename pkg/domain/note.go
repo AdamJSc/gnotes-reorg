@@ -14,6 +14,7 @@ const maxFnameTitleLen = 30
 // Note represents a single Note
 type Note struct {
 	ID           string    `json:"id"`           // numeric gnotes id
+	Index        int       `json:"-"`            // index of note within a slice
 	ParentDir    string    `json:"-"`            // parent directory of note once cleaned (inflated, not stored)
 	Category     string    `json:"-"`            // category of note (inflated, not stored)
 	OriginalPath string    `json:"originalPath"` // original full-qualified path to note html source file
@@ -53,23 +54,30 @@ type NoteManifest struct {
 	content map[string]string
 }
 
-// Set assigns the provided category to the provided filename
-func (nm *NoteManifest) Set(filename, cat string) error {
+// Len returns count of filenames with categories
+func (nm *NoteManifest) Len() int {
+	return len(nm.content)
+}
+
+// Set assigns the provided Note to the manifest
+func (nm *NoteManifest) Set(n Note) error {
 	if nm.content == nil {
 		nm.content = make(map[string]string)
 	}
 
-	if nm.IsSet(filename) {
+	filename := n.Filename()
+
+	if nm.HasCat(filename) {
 		return fmt.Errorf("filename %s already has category", filename)
 	}
 
-	nm.content[filename] = cat
+	nm.content[filename] = n.Category
 
 	return nil
 }
 
-// IsSet return true if existing filename already has a category
-func (nm *NoteManifest) IsSet(filename string) bool {
+// HasCat returs true if existing filename has a category
+func (nm *NoteManifest) HasCat(filename string) bool {
 	if nm.content == nil {
 		nm.content = make(map[string]string)
 	}
@@ -95,10 +103,4 @@ func (nm *NoteManifest) UnmarshalJSON(b []byte) error {
 	nm.content = content
 
 	return nil
-}
-
-// noteWithIndex encapsulates a Note with an index value
-type noteWithIndex struct {
-	note Note
-	idx  int
 }

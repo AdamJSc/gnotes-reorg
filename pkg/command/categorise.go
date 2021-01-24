@@ -17,11 +17,14 @@ const abridgedLen = 5
 // defaultCategory defines the category to use when user input is empty
 const defaultCategory = "_none"
 
+// manifestFileName defines the filename whose contents represent a Notes manifest
+const manifestFileName = "manifest.json"
+
 // Categorise represents our categorise command
 type Categorise struct {
-	Files *domain.FileSystemService
-	Notes *domain.NoteService
 	runner
+	Files  *domain.FileSystemService
+	Notes  *domain.NoteService
 	inPath string
 }
 
@@ -29,6 +32,13 @@ type Categorise struct {
 func (c *Categorise) Run() error {
 	if err := c.parseFlag(); err != nil {
 		return fmt.Errorf("cannot parse flag: %w", err)
+	}
+
+	var err error
+
+	c.inPath, err = c.Files.ParseAbsPath(c.inPath)
+	if err != nil {
+		return fmt.Errorf("cannot parse absolute path %s: %w", c.inPath, err)
 	}
 
 	if err := c.Files.DirExists(c.inPath); err != nil {
@@ -41,7 +51,7 @@ func (c *Categorise) Run() error {
 		c.inPath,
 		&domain.IsNotDir{},
 		&domain.IsJSON{},
-		&domain.IsNotName{BaseNames: []string{"manifest.json"}},
+		&domain.IsNotName{BaseNames: []string{manifestFileName}},
 	)
 	if err != nil {
 		return fmt.Errorf("validation error: %w", err)
@@ -53,14 +63,14 @@ func (c *Categorise) Run() error {
 
 	log.Println("parsing notes from files...")
 
-	notes, err := c.parseNotesFromFiles(files)
+	notes, err := c.Notes.ParseFromFiles(files)
 	if err != nil {
 		return fmt.Errorf("cannot parse notes: %w", err)
 	}
 
 	log.Println("parsing manifest from file...")
 
-	manifestPath, err := c.Files.ParseAbsPath(c.inPath, "manifest.json")
+	manifestPath, err := c.Files.ParseAbsPath(c.inPath, manifestFileName)
 	if err != nil {
 		return fmt.Errorf("cannot parse manifest path: %w", err)
 	}
@@ -109,29 +119,13 @@ func (c *Categorise) parseFlag() error {
 	return nil
 }
 
-// parseNotesFromFiles parses Notes from the files at the provided paths
-func (c *Categorise) parseNotesFromFiles(paths []string) ([]domain.Note, error) {
-	var notes []domain.Note
-
-	for _, p := range paths {
-		n, err := c.Notes.ParseFromFile(p)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse note from file %s: %w", p, err)
-		}
-
-		notes = append(notes, n)
-	}
-
-	return notes, nil
-}
-
 // requestCategories requests categories for each of the provided Notes in turn
 func (c *Categorise) requestCategories(notes []domain.Note, manifest domain.NoteManifest) error {
 	for _, n := range notes {
-		cat := requestCategory(n, true)
+		n.Category = requestCategory(n, true)
 
-		if err := manifest.Set(n.Filename(), cat); err != nil {
-			return fmt.Errorf("cannot set manifest value: %w", err)
+		if err := manifest.Set(n); err != nil {
+			return fmt.Errorf("cannot set note on manifest: %w", err)
 		}
 
 		if err := c.Notes.SaveManifest(manifest); err != nil {

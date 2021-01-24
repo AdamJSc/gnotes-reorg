@@ -6,15 +6,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"reorg/pkg/adapters"
 	"reorg/pkg/domain"
 	"time"
 )
 
 // Clean represents our clean command
 type Clean struct {
-	Files *domain.FileSystemService
-	Notes *domain.NoteService
 	runner
+	Files   *domain.FileSystemService
+	Notes   *domain.NoteService
 	inPath  string
 	outPath string
 	jsonOut bool
@@ -90,9 +91,9 @@ func (c *Clean) Run() error {
 	var wr domain.NoteWriter
 	switch {
 	case c.jsonOut:
-		wr = &domain.JSONNoteWriter{Files: c.Files}
+		wr = &adapters.JSONNoteWriter{Files: c.Files}
 	case c.txtOut:
-		wr = &domain.TxtNoteWriter{Files: c.Files}
+		wr = &adapters.TxtNoteWriter{Files: c.Files}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)

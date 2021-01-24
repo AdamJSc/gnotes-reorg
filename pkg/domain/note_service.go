@@ -78,6 +78,22 @@ func (ns *NoteService) ParseFromFile(path string) (Note, error) {
 	return n, nil
 }
 
+// ParseFromFiles parses Notes from the files at the provided paths
+func (ns *NoteService) ParseFromFiles(paths []string) ([]Note, error) {
+	var notes []Note
+
+	for _, p := range paths {
+		n, err := ns.ParseFromFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse note from file %s: %w", p, err)
+		}
+
+		notes = append(notes, n)
+	}
+
+	return notes, nil
+}
+
 // ParseManifestFromPath returns a noteManifest parsed from the provided path
 func (ns *NoteService) ParseManifestFromPath(path string) (NoteManifest, error) {
 	m := NoteManifest{path: path}
@@ -122,20 +138,22 @@ func (ns *NoteService) WriteNotes(ctx context.Context, notes []Note, nw NoteWrit
 			default:
 			}
 
+			n.Index = idx
+
 			// otherwise continue for current note
 			sem <- struct{}{}
-			go func(n Note, idx int) {
+			go func(n Note) {
 				defer func() {
 					<-sem
 				}()
 
-				if err := nw.Write(noteWithIndex{note: n, idx: idx}); err != nil {
-					errCh <- fmt.Errorf("error writing note %d: %w", idx, err)
+				if err := nw.Write(n); err != nil {
+					errCh <- fmt.Errorf("error writing note %d: %w", n.Index, err)
 					return
 				}
 
 				noteCh <- n
-			}(n, idx)
+			}(n)
 		}
 	}()
 
@@ -165,7 +183,7 @@ func (ns *NoteService) FilterNotesByManifest(notes []Note, m NoteManifest, keepI
 	var retained []Note
 
 	for _, n := range notes {
-		if m.IsSet(n.Filename()) == keepIfPresent {
+		if m.HasCat(n.Filename()) == keepIfPresent {
 			retained = append(retained, n)
 		}
 	}
