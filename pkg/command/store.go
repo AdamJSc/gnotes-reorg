@@ -3,7 +3,6 @@ package command
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"reorg/pkg/adapters"
@@ -14,32 +13,32 @@ import (
 // Store represents our store command
 type Store struct {
 	runner
+	InPath string
 	Files  *domain.FileSystemService
 	Notes  *domain.NoteService
-	inPath string
 }
 
 // Run implements Runner
 func (s *Store) Run() error {
-	if err := s.parseFlag(); err != nil {
-		return fmt.Errorf("cannot parse flag: %w", err)
+	if err := s.validate(); err != nil {
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	var err error
 
-	s.inPath, err = s.Files.ParseAbsPath(s.inPath)
+	s.InPath, err = s.Files.ParseAbsPath(s.InPath)
 	if err != nil {
-		return fmt.Errorf("cannot parse absolute path %s: %w", s.inPath, err)
+		return fmt.Errorf("cannot parse absolute path %s: %w", s.InPath, err)
 	}
 
-	if err := s.Files.DirExists(s.inPath); err != nil {
-		return fmt.Errorf("cannot find directory %s: %w", s.inPath, err)
+	if err := s.Files.DirExists(s.InPath); err != nil {
+		return fmt.Errorf("cannot find directory %s: %w", s.InPath, err)
 	}
 
-	log.Printf("scanning directory: %s", s.inPath)
+	log.Printf("scanning directory: %s", s.InPath)
 
 	files, err := s.Files.GetChildPaths(
-		s.inPath,
+		s.InPath,
 		&domain.IsNotDir{},
 		&domain.IsJSON{},
 		&domain.IsNotName{BaseNames: []string{manifestFileName}},
@@ -49,7 +48,7 @@ func (s *Store) Run() error {
 	}
 
 	if len(files) == 0 {
-		return fmt.Errorf("no json files found in parent: %s", s.inPath)
+		return fmt.Errorf("no json files found in parent: %s", s.InPath)
 	}
 
 	log.Println("parsing notes from files...")
@@ -61,7 +60,7 @@ func (s *Store) Run() error {
 
 	log.Println("parsing manifest from file...")
 
-	manifestPath, err := s.Files.ParseAbsPath(s.inPath, manifestFileName)
+	manifestPath, err := s.Files.ParseAbsPath(s.InPath, manifestFileName)
 	if err != nil {
 		return fmt.Errorf("cannot parse manifest path: %w", err)
 	}
@@ -107,14 +106,9 @@ func (s *Store) Run() error {
 	return nil
 }
 
-// parseFlag parses and sanity checks the required flag
-func (s *Store) parseFlag() error {
-	i := flag.String("i", "", "relative path to directory of cleaned files with manifest")
-	flag.Parse()
-
-	s.inPath = *i
-
-	if s.inPath == "" {
+// validate sanity checks the input variables
+func (s *Store) validate() error {
+	if s.InPath == "" {
 		return errors.New("-i is empty")
 	}
 

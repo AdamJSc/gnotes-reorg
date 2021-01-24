@@ -30,7 +30,7 @@ type Categorise struct {
 // Run implements Runner
 func (c *Categorise) Run() error {
 	if err := c.validate(); err != nil {
-		return fmt.Errorf("cannot parse flag: %w", err)
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	var err error
@@ -104,7 +104,7 @@ func (c *Categorise) Run() error {
 	return nil
 }
 
-// parseFlag parses and sanity checks the required flag
+// validate sanity checks the input variables
 func (c *Categorise) validate() error {
 	if c.InPath == "" {
 		return errors.New("-i is empty")
