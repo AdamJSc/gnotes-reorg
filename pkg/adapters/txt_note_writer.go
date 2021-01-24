@@ -5,6 +5,7 @@ import (
 	"os"
 	"reorg/pkg/domain"
 	"strings"
+	"sync"
 )
 
 // TxtNoteWriter writes a Note as a text file
@@ -12,33 +13,36 @@ type TxtNoteWriter struct {
 	domain.NoteWriter
 	SubDir string // represents sub-directory to write note to
 	Files  *domain.FileSystemService
+	mux    *sync.Mutex
 }
 
 // Write implements domain.NoteWriter
 func (t *TxtNoteWriter) Write(n domain.Note) error {
+	if t.mux == nil {
+		t.mux = &sync.Mutex{}
+	}
+
 	parentDir := n.ParentDir
 
 	var err error
 
 	if t.SubDir != "" {
-		parentDir, err = joinAndCreate(t.Files, []string{parentDir, t.SubDir})
+		parentDir, err = joinAndCreateDir(t.mux, t.Files, []string{parentDir, t.SubDir})
 		if err != nil {
 			return err
 		}
 	}
 
 	if n.Category != "" {
-		parentDir, err = joinAndCreate(t.Files, []string{parentDir, n.Category})
+		parentDir, err = joinAndCreateDir(t.mux, t.Files, []string{parentDir, n.Category})
 		if err != nil {
 			return err
 		}
 	}
 
 	// create parent directory if it doesn't already exist
-	if err := t.Files.DirExists(parentDir); err != nil {
-		if err := t.Files.MakeDir(parentDir); err != nil {
-			return fmt.Errorf("cannot make directory %s: %w", parentDir, err)
-		}
+	if err := createDir(t.mux, t.Files, parentDir); err != nil {
+		return err
 	}
 
 	// save note
@@ -57,16 +61,28 @@ func (t *TxtNoteWriter) Write(n domain.Note) error {
 }
 
 // joinAndCreate joins the provided file parts and attempts to create the path as a directory
-func joinAndCreate(f *domain.FileSystemService, parts []string) (string, error) {
+func joinAndCreateDir(m *sync.Mutex, f *domain.FileSystemService, parts []string) (string, error) {
 	path := strings.Join(parts, string(os.PathSeparator))
 
-	if err := f.DirExists(path); err != nil {
-		if err := f.MakeDir(path); err != nil {
-			return "", fmt.Errorf("cannot make directory %s: %w", path, err)
-		}
+	if err := createDir(m, f, path); err != nil {
+		return "", err
 	}
 
 	return path, nil
+}
+
+// createDir attempts to create the provided path as a directory if it doesn't exist
+func createDir(m *sync.Mutex, f *domain.FileSystemService, path string) error {
+	m.Lock()
+	defer m.Unlock()
+
+	if err := f.DirExists(path); err != nil {
+		if err := f.MakeDir(path); err != nil {
+			return fmt.Errorf("cannot make directory %s: %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 // generateAbsFilePath generates a file path from the provided arguments
