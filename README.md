@@ -74,3 +74,8 @@ Or specify the Google storage destination:
 # cleaned JSON note files and manifest must be in same directory
 go run cmd/store/main.go -g -i ./cleaned
 ```
+
+## TODO
+
+* Implement Google Storage note writer
+* Testsuite
