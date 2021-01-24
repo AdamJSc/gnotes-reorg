@@ -3,7 +3,6 @@ package command
 import (
 	"bufio"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -23,32 +22,32 @@ const manifestFileName = "manifest.json"
 // Categorise represents our categorise command
 type Categorise struct {
 	runner
+	InPath string
 	Files  *domain.FileSystemService
 	Notes  *domain.NoteService
-	inPath string
 }
 
 // Run implements Runner
 func (c *Categorise) Run() error {
-	if err := c.parseFlag(); err != nil {
+	if err := c.validate(); err != nil {
 		return fmt.Errorf("cannot parse flag: %w", err)
 	}
 
 	var err error
 
-	c.inPath, err = c.Files.ParseAbsPath(c.inPath)
+	c.InPath, err = c.Files.ParseAbsPath(c.InPath)
 	if err != nil {
-		return fmt.Errorf("cannot parse absolute path %s: %w", c.inPath, err)
+		return fmt.Errorf("cannot parse absolute path %s: %w", c.InPath, err)
 	}
 
-	if err := c.Files.DirExists(c.inPath); err != nil {
-		return fmt.Errorf("cannot find directory %s: %w", c.inPath, err)
+	if err := c.Files.DirExists(c.InPath); err != nil {
+		return fmt.Errorf("cannot find directory %s: %w", c.InPath, err)
 	}
 
-	log.Printf("scanning directory: %s", c.inPath)
+	log.Printf("scanning directory: %s", c.InPath)
 
 	files, err := c.Files.GetChildPaths(
-		c.inPath,
+		c.InPath,
 		&domain.IsNotDir{},
 		&domain.IsJSON{},
 		&domain.IsNotName{BaseNames: []string{manifestFileName}},
@@ -58,7 +57,7 @@ func (c *Categorise) Run() error {
 	}
 
 	if len(files) == 0 {
-		return fmt.Errorf("no json files found in parent: %s", c.inPath)
+		return fmt.Errorf("no json files found in parent: %s", c.InPath)
 	}
 
 	log.Println("parsing notes from files...")
@@ -70,7 +69,7 @@ func (c *Categorise) Run() error {
 
 	log.Println("parsing manifest from file...")
 
-	manifestPath, err := c.Files.ParseAbsPath(c.inPath, manifestFileName)
+	manifestPath, err := c.Files.ParseAbsPath(c.InPath, manifestFileName)
 	if err != nil {
 		return fmt.Errorf("cannot parse manifest path: %w", err)
 	}
@@ -106,13 +105,8 @@ func (c *Categorise) Run() error {
 }
 
 // parseFlag parses and sanity checks the required flag
-func (c *Categorise) parseFlag() error {
-	i := flag.String("i", "", "relative path to directory of cleaned files")
-	flag.Parse()
-
-	c.inPath = *i
-
-	if c.inPath == "" {
+func (c *Categorise) validate() error {
+	if c.InPath == "" {
 		return errors.New("-i is empty")
 	}
 
