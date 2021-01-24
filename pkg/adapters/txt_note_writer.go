@@ -10,15 +10,20 @@ import (
 // TxtNoteWriter writes a Note as a text file
 type TxtNoteWriter struct {
 	domain.NoteWriter
-	Files *domain.FileSystemService
+	SubDir string // represents sub-directory to write note to
+	Files  *domain.FileSystemService
 }
 
 // Write implements domain.NoteWriter
 func (t *TxtNoteWriter) Write(n domain.Note) error {
 	parentDir := n.ParentDir
 
+	if t.SubDir != "" {
+		parentDir = strings.Join([]string{parentDir, t.SubDir}, string(os.PathSeparator))
+	}
+
 	if n.Category != "" {
-		parentDir = strings.Join([]string{n.Category, n.ParentDir}, string(os.PathSeparator))
+		parentDir = strings.Join([]string{parentDir, n.Category}, string(os.PathSeparator))
 	}
 
 	// save note
