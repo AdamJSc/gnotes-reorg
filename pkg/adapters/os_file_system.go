@@ -96,6 +96,11 @@ func (o *OsFileSystem) Abs(pathParts ...string) (string, error) {
 	return filepath.Abs(joined)
 }
 
+// Dir implements FileSystem.Dir()
+func (o *OsFileSystem) Dir(path string) string {
+	return filepath.Dir(path)
+}
+
 // Base implements FileSystem.Base()
 func (o *OsFileSystem) Base(path string) string {
 	return filepath.Base(path)

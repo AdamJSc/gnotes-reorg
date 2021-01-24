@@ -59,9 +59,18 @@ The manifest will be saved as `./cleaned/manifest.json`
 
 The third stage is to store each note as a plain text file in the hierarchy represented by the category manifest.
 
+Either specify the filesystem destination:
+
 ```
 # cleaned JSON note files and manifest must be in same directory
-go run cmd/store/main.go -i ./cleaned
+go run cmd/store/main.go -f -i ./cleaned
 ```
 
-This command will copy the notes to `./cleaned/stored/<category>/<note_timestamp_and_title>.txt`
+This command will copy the notes to `./cleaned/categorised/<category>/<note_timestamp_and_title>.txt`
+
+Or specify the Google storage destination:
+
+```
+# cleaned JSON note files and manifest must be in same directory
+go run cmd/store/main.go -g -i ./cleaned
+```

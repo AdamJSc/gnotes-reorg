@@ -11,5 +11,6 @@ type FileSystem interface {
 	Mkdir(path string, perm uint32) error
 	RemoveAll(path string) error
 	Abs(pathParts ...string) (string, error)
+	Dir(path string) string
 	Base(path string) string
 }

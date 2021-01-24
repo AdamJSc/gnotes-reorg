@@ -12,17 +12,12 @@ import (
 // JSONNoteWriter writes a Note as a JSON file
 type JSONNoteWriter struct {
 	domain.NoteWriter
-	SubDir string // represents sub-directory to write note to
-	Files  *domain.FileSystemService
+	Files *domain.FileSystemService
 }
 
 // Write implements domain.NoteWriter
 func (j *JSONNoteWriter) Write(n domain.Note) error {
 	parentDir := n.ParentDir
-
-	if j.SubDir != "" {
-		parentDir = strings.Join([]string{parentDir, j.SubDir}, string(os.PathSeparator))
-	}
 
 	if n.Category != "" {
 		parentDir = strings.Join([]string{parentDir, n.Category}, string(os.PathSeparator))

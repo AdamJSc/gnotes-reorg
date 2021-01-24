@@ -73,7 +73,7 @@ func (ns *NoteService) ParseFromFile(path string) (Note, error) {
 		return Note{}, fmt.Errorf("cannot json decode payload in file %s as note: %w", path, err)
 	}
 
-	n.ParentDir = path
+	n.ParentDir = ns.fs.Dir(path)
 
 	return n, nil
 }
@@ -189,6 +189,18 @@ func (ns *NoteService) FilterNotesByManifest(notes []Note, m NoteManifest, keepI
 	}
 
 	return retained
+}
+
+// EnrichNoteCategories returns the provided Notes whose category values are taken from the provided manifest
+func (ns *NoteService) EnrichNoteCategories(notes []Note, m NoteManifest) []Note {
+	var enriched []Note
+
+	for _, n := range notes {
+		m.EnrichCat(&n)
+		enriched = append(enriched, n)
+	}
+
+	return enriched
 }
 
 // SortNotesByFilenameDesc sorts the provided notes ordered descending by filename

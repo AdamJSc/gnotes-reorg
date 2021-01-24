@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reorg/pkg/adapters"
 	"reorg/pkg/domain"
 	"time"
 )
@@ -14,6 +13,7 @@ import (
 type Store struct {
 	runner
 	InPath string
+	Writer domain.NoteWriter
 	Files  *domain.FileSystemService
 	Notes  *domain.NoteService
 }
@@ -84,6 +84,7 @@ func (s *Store) Run() error {
 	}
 
 	notes = s.Notes.FilterNotesByManifest(notes, manifest, true)
+	notes = s.Notes.EnrichNoteCategories(notes, manifest)
 
 	log.Printf("%d notes moving to storage", len(notes))
 
@@ -91,15 +92,12 @@ func (s *Store) Run() error {
 		return errors.New("aborted")
 	}
 
-	// TODO: flag to determine instance of writer
-	wr := &adapters.GoogleStorageNoteWriter{}
-
 	log.Println("begin move to storage...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
 	defer cancel()
 
-	if _, err := s.Notes.WriteNotes(ctx, notes, wr); err != nil {
+	if _, err := s.Notes.WriteNotes(ctx, notes, s.Writer); err != nil {
 		return fmt.Errorf("moving notes failed: %w", err)
 	}
 
@@ -109,7 +107,11 @@ func (s *Store) Run() error {
 // validate sanity checks the input variables
 func (s *Store) validate() error {
 	if s.InPath == "" {
-		return errors.New("-i is empty")
+		return errors.New("input path is empty")
+	}
+
+	if s.Writer == nil {
+		return errors.New("must provide a note writer")
 	}
 
 	return nil

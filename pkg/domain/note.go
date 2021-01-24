@@ -76,6 +76,21 @@ func (nm *NoteManifest) Set(n Note) error {
 	return nil
 }
 
+// EnrichCat sets the category on the provided Note
+func (nm *NoteManifest) EnrichCat(n *Note) {
+	if nm.content == nil {
+		nm.content = make(map[string]string)
+	}
+
+	filename := n.Filename()
+
+	if !nm.HasCat(filename) {
+		return
+	}
+
+	n.Category = nm.content[filename]
+}
+
 // HasCat returs true if existing filename has a category
 func (nm *NoteManifest) HasCat(filename string) bool {
 	if nm.content == nil {

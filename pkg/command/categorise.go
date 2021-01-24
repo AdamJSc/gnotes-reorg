@@ -107,7 +107,7 @@ func (c *Categorise) Run() error {
 // validate sanity checks the input variables
 func (c *Categorise) validate() error {
 	if c.InPath == "" {
-		return errors.New("-i is empty")
+		return errors.New("input path is empty")
 	}
 
 	return nil

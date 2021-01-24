@@ -117,7 +117,7 @@ func (c *Clean) validate() error {
 		return errors.New("output path is empty")
 	}
 	if c.TxtOut == c.JSONOut {
-		return errors.New("please specify either json or txt output")
+		return errors.New("must specify output either json or txt")
 	}
 
 	return nil
