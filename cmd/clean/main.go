@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"reorg/pkg/adapters"
 	"reorg/pkg/command"
 	"reorg/pkg/domain"
@@ -9,15 +10,26 @@ import (
 
 func main() {
 	osfs := &adapters.OsFileSystem{}
+	filesService := domain.NewFileSystemService(osfs)
 
 	i, o, j, t := parseFlags()
+
+	var wr domain.NoteWriter
+
+	switch {
+	case j == t:
+		log.Fatal("must specify output either json or txt")
+	case t:
+		wr = &adapters.TxtNoteWriter{Files: filesService}
+	case j:
+		wr = &adapters.JSONNoteWriter{Files: filesService}
+	}
 
 	command.Run(&command.Clean{
 		InPath:  i,
 		OutPath: o,
-		JSONOut: j,
-		TxtOut:  t,
-		Files:   domain.NewFileSystemService(osfs),
+		Writer:  wr,
+		Files:   filesService,
 		Notes:   domain.NewNoteService(osfs),
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reorg/pkg/adapters"
 	"reorg/pkg/domain"
 	"time"
 )
@@ -15,8 +14,7 @@ type Clean struct {
 	runner
 	InPath  string
 	OutPath string
-	JSONOut bool
-	TxtOut  bool
+	Writer  domain.NoteWriter
 	Files   *domain.FileSystemService
 	Notes   *domain.NoteService
 }
@@ -87,18 +85,10 @@ func (c *Clean) Run() error {
 		return fmt.Errorf("cannot create directory %s: %w", c.OutPath, err)
 	}
 
-	var wr domain.NoteWriter
-	switch {
-	case c.JSONOut:
-		wr = &adapters.JSONNoteWriter{Files: c.Files}
-	case c.TxtOut:
-		wr = &adapters.TxtNoteWriter{Files: c.Files}
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
 	defer cancel()
 
-	n, err := c.Notes.WriteNotes(ctx, notes, wr)
+	n, err := c.Notes.WriteNotes(ctx, notes, c.Writer)
 	if err != nil {
 		return err
 	}
@@ -113,11 +103,13 @@ func (c *Clean) validate() error {
 	if c.InPath == "" {
 		return errors.New("input path is empty")
 	}
+
 	if c.OutPath == "" {
 		return errors.New("output path is empty")
 	}
-	if c.TxtOut == c.JSONOut {
-		return errors.New("must specify output either json or txt")
+
+	if c.Writer == nil {
+		return errors.New("must provide a note writer")
 	}
 
 	return nil
